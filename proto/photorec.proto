@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package photorec;
+
+// Service definition for PhotoRec file recovery operations
+service PhotoRecService {
+  // Initialize PhotoRec context and discover available disks
+  rpc Initialize(InitializeRequest) returns (InitializeResponse);
+  
+  // Get list of available disks
+  rpc GetDisks(GetDisksRequest) returns (GetDisksResponse);
+  
+  // Get list of partitions on a disk
+  rpc GetPartitions(GetPartitionsRequest) returns (GetPartitionsResponse);
+  
+  // Start file recovery process
+  rpc StartRecovery(StartRecoveryRequest) returns (StartRecoveryResponse);
+  
+  // Get recovery status and progress
+  rpc GetRecoveryStatus(GetRecoveryStatusRequest) returns (GetRecoveryStatusResponse);
+  
+  // Stop/abort recovery process
+  rpc StopRecovery(StopRecoveryRequest) returns (StopRecoveryResponse);
+  
+  // Configure recovery options
+  rpc ConfigureOptions(ConfigureOptionsRequest) returns (ConfigureOptionsResponse);
+  
+  // Get recovery statistics
+  rpc GetStatistics(GetStatisticsRequest) returns (GetStatisticsResponse);
+  
+  // Clean up resources
+  rpc Cleanup(CleanupRequest) returns (CleanupResponse);
+}
+
+// Initialize PhotoRec context
+message InitializeRequest {
+  string device = 1;           // Device path (e.g., "/dev/sda" or image file path)
+  string recovery_dir = 2;     // Recovery output directory
+  int32 log_mode = 3;         // Log mode: 0=no log, 1=info, 2=debug
+  string log_file = 4;        // Log file path (optional)
+}
+
+message InitializeResponse {
+  bool success = 1;
+  string error_message = 2;
+  string context_id = 3;      // Unique context identifier
+}
+
+// Get available disks
+message GetDisksRequest {
+  string context_id = 1;
+}
+
+message DiskInfo {
+  string device = 1;
+  string description = 2;
+  uint64 size = 3;
+  string model = 4;
+  string serial_no = 5;
+  string firmware_rev = 6;
+}
+
+message GetDisksResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated DiskInfo disks = 3;
+}
+
+// Get partitions on a disk
+message GetPartitionsRequest {
+  string context_id = 1;
+  string device = 2;
+}
+
+message PartitionInfo {
+  string name = 1;
+  string filesystem = 2;
+  uint64 offset = 3;
+  uint64 size = 4;
+  string info = 5;
+  int32 order = 6;
+  string status = 7;
+}
+
+message GetPartitionsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated PartitionInfo partitions = 3;
+}
+
+// Start recovery process
+message StartRecoveryRequest {
+  string context_id = 1;
+  string device = 2;
+  int32 partition_order = 3;  // -1 for entire disk, >=0 for specific partition
+  string recovery_dir = 4;
+  RecoveryOptions options = 5;
+}
+
+message RecoveryOptions {
+  int32 paranoid_mode = 1;           // 0-2
+  bool keep_corrupted_files = 2;
+  bool enable_ext2_optimization = 3;
+  bool expert_mode = 4;
+  bool low_memory_mode = 5;
+  bool verbose_output = 6;
+  bool carve_free_space_only = 7;
+  repeated string enabled_file_types = 8;
+  repeated string disabled_file_types = 9;
+}
+
+message StartRecoveryResponse {
+  bool success = 1;
+  string error_message = 2;
+  string recovery_id = 3;
+}
+
+// Get recovery status
+message GetRecoveryStatusRequest {
+  string context_id = 1;
+  string recovery_id = 2;
+}
+
+message RecoveryStatus {
+  string status = 1;           // Current recovery phase
+  uint64 current_offset = 2;   // Current recovery offset
+  uint64 total_size = 3;       // Total size to scan
+  uint32 files_recovered = 4;  // Number of files recovered
+  uint32 directories_created = 5;
+  bool is_complete = 6;
+  string error_message = 7;
+}
+
+message GetRecoveryStatusResponse {
+  bool success = 1;
+  string error_message = 2;
+  RecoveryStatus status = 3;
+}
+
+// Stop recovery
+message StopRecoveryRequest {
+  string context_id = 1;
+  string recovery_id = 2;
+}
+
+message StopRecoveryResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Configure options
+message ConfigureOptionsRequest {
+  string context_id = 1;
+  RecoveryOptions options = 2;
+}
+
+message ConfigureOptionsResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Get statistics
+message GetStatisticsRequest {
+  string context_id = 1;
+}
+
+message FileTypeStatistics {
+  string file_type = 1;
+  uint32 recovered = 2;
+  uint32 failed = 3;
+  string description = 4;
+}
+
+message GetStatisticsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated FileTypeStatistics statistics = 3;
+  uint32 total_files_recovered = 4;
+  uint32 total_files_failed = 5;
+}
+
+// Cleanup
+message CleanupRequest {
+  string context_id = 1;
+}
+
+message CleanupResponse {
+  bool success = 1;
+  string error_message = 2;
+} 
