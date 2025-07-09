@@ -17,6 +17,9 @@
 // PhotoRec API includes
 #include "photorec_api.h"
 
+// Logger includes
+#include "logger.h"
+
 namespace photorec
 {
     /**
@@ -103,6 +106,15 @@ namespace photorec
          * @brief Wait for server to finish
          */
         void Wait() const;
+
+        /**
+         * @brief Set the logging level for the server
+         * @param level The log level to set
+         */
+        static void SetLogLevel(const LogLevel level)
+        {
+            Logger::Instance().SetLogLevel(level);
+        }
 
     private:
         // Server management

@@ -1,24 +1,28 @@
 #include "photorec_grpc_server.h"
-#include <iostream>
+#include "logger.h"
 #include <random>
 
 namespace photorec
 {
     PhotoRecGrpcServer::~PhotoRecGrpcServer()
     {
+        LOG_INFO("PhotoRec gRPC Server destructor called");
         Stop();
 
         // Clean up all contexts
         std::lock_guard<std::mutex> lock(contexts_mutex_);
+        LOG_DEBUG("Cleaning up " + std::to_string(contexts_.size()) + " contexts");
         // ReSharper disable once CppUseElementsView
         for (const auto& pair : contexts_)
         {
             if (pair.second)
             {
+                LOG_DEBUG("Finishing PhotoRec context: " + pair.first);
                 finish_photorec(pair.second);
             }
         }
         contexts_.clear();
+        LOG_INFO("PhotoRec gRPC Server cleanup completed");
     }
 
     std::string PhotoRecGrpcServer::GenerateContextId()
@@ -33,6 +37,7 @@ namespace photorec
         {
             id += hex_chars[dis(gen)];
         }
+        LOG_DEBUG("Generated context ID: " + id);
         return id;
     }
 
@@ -48,6 +53,7 @@ namespace photorec
         {
             id += hex_chars[dis(gen)];
         }
+        LOG_DEBUG("Generated recovery ID: " + id);
         return id;
     }
 
@@ -55,7 +61,16 @@ namespace photorec
     {
         std::lock_guard<std::mutex> lock(contexts_mutex_);
         auto it = contexts_.find(context_id);
-        return (it != contexts_.end()) ? it->second : nullptr;
+        if (it != contexts_.end())
+        {
+            LOG_DEBUG("Found context: " + context_id);
+            return it->second;
+        }
+        else
+        {
+            LOG_WARNING("Context not found: " + context_id);
+            return nullptr;
+        }
     }
 
     RecoverySession* PhotoRecGrpcServer::GetRecoverySession(
@@ -63,7 +78,16 @@ namespace photorec
     {
         std::lock_guard<std::mutex> lock(sessions_mutex_);
         auto it = recovery_sessions_.find(recovery_id);
-        return (it != recovery_sessions_.end()) ? it->second.get() : nullptr;
+        if (it != recovery_sessions_.end())
+        {
+            LOG_DEBUG("Found recovery session: " + recovery_id);
+            return it->second.get();
+        }
+        else
+        {
+            LOG_WARNING("Recovery session not found: " + recovery_id);
+            return nullptr;
+        }
     }
 
     grpc::Status PhotoRecGrpcServer::Initialize(grpc::ServerContext* context,
@@ -71,15 +95,22 @@ namespace photorec
                                                 InitializeResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO("Initialize request received - Device: " + request->device() +
+            ", Recovery dir: " + request->recovery_dir());
+
         try
         {
             // Create PhotoRec context
             char* argv[] = {const_cast<char*>("photorec"), nullptr};
+            LOG_DEBUG("Initializing PhotoRec context with log mode: " +
+                std::to_string(request->log_mode()));
+
+            const auto recup_dir = const_cast<char*>(request->recovery_dir().c_str());
+            const auto device = const_cast<char*>(request->device().
+                                                     c_str());
             ph_cli_context_t* ctx = init_photorec(1, argv,
-                                                  const_cast<char*>(request->
-                                                      recovery_dir().c_str()),
-                                                  const_cast<char*>(request->device().
-                                                      c_str()),
+                                                  recup_dir,
+                                                  device,
                                                   request->log_mode(),
                                                   request->log_file().empty()
                                                       ? nullptr
@@ -87,6 +118,7 @@ namespace photorec
 
             if (!ctx)
             {
+                LOG_ERROR("Failed to initialize PhotoRec context");
                 response->set_success(false);
                 response->set_error_message("Failed to initialize PhotoRec context");
                 return grpc::Status::OK;
@@ -99,6 +131,7 @@ namespace photorec
             {
                 std::lock_guard<std::mutex> lock(contexts_mutex_);
                 contexts_[context_id] = ctx;
+                LOG_INFO("PhotoRec context initialized successfully: " + context_id);
             }
 
             response->set_success(true);
@@ -108,6 +141,7 @@ namespace photorec
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Initialization error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Initialization error: ") + e.what());
             return grpc::Status::OK;
@@ -119,33 +153,43 @@ namespace photorec
                                               GetDisksResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO("GetDisks request received for context: " + request->context_id());
+
         try
         {
             ph_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
                 response->set_success(false);
                 response->set_error_message("Invalid context ID");
                 return grpc::Status::OK;
             }
 
             // Iterate through available disks
-            list_disk_t* disk_list = ctx->list_disk;
+            const list_disk_t* disk_list = ctx->list_disk;
+            int disk_count = 0;
             while (disk_list)
             {
                 if (const disk_t* disk = disk_list->disk)
                 {
                     DiskInfo* proto_disk = response->add_disks();
                     ConvertDiskInfo(disk, proto_disk);
+                    disk_count++;
+                    LOG_DEBUG(
+                        "Found disk: " + std::string(disk->device ? disk->device : "") +
+                        " (" + std::to_string(disk->disk_size) + " bytes)");
                 }
                 disk_list = disk_list->next;
             }
 
+            LOG_INFO("Found " + std::to_string(disk_count) + " disks");
             response->set_success(true);
             return grpc::Status::OK;
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Get disks error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Get disks error: ") + e.what());
             return grpc::Status::OK;
@@ -157,20 +201,25 @@ namespace photorec
                                                    GetPartitionsResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO("GetPartitions request received for device: " + request->device() +
+            " (context: " + request->context_id() + ")");
+
         try
         {
             ph_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
                 response->set_success(false);
                 response->set_error_message("Invalid context ID");
                 return grpc::Status::OK;
             }
 
             // Change to the specified disk
-            disk_t* disk = change_disk(ctx, request->device().c_str());
-            if (!disk)
+            LOG_DEBUG("Changing to disk: " + request->device());
+            if (const disk_t* disk = change_disk(ctx, request->device().c_str()); !disk)
             {
+                LOG_ERROR("Failed to access device: " + request->device());
                 response->set_success(false);
                 response->set_error_message(
                     "Failed to access device: " + request->device());
@@ -178,22 +227,28 @@ namespace photorec
             }
 
             // Get partitions
-            list_part_t* part_list = ctx->list_part;
+            int partition_count = 0;
+            const list_part_t* part_list = ctx->list_part;
             while (part_list)
             {
                 if (const partition_t* partition = part_list->part)
                 {
                     PartitionInfo* proto_partition = response->add_partitions();
                     ConvertPartitionInfo(partition, proto_partition);
+                    partition_count++;
+                    LOG_DEBUG("Found partition: " + std::string(partition->partname) +
+                        " (" + std::to_string(partition->part_size) + " bytes)");
                 }
                 part_list = part_list->next;
             }
 
+            LOG_INFO("Found " + std::to_string(partition_count) + " partitions");
             response->set_success(true);
             return grpc::Status::OK;
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Get partitions error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Get partitions error: ") + e.what());
             return grpc::Status::OK;
@@ -205,11 +260,15 @@ namespace photorec
                                                    StartRecoveryResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO("StartRecovery request received for device: " + request->device() +
+            " (context: " + request->context_id() + ")");
+
         try
         {
             ph_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
                 response->set_success(false);
                 response->set_error_message("Invalid context ID");
                 return grpc::Status::OK;
@@ -224,10 +283,14 @@ namespace photorec
             session->context = ctx;
             session->running = true;
 
+            LOG_DEBUG("Creating recovery session: " + recovery_id +
+                " for partition order: " + std::to_string(request->partition_order()));
+
             // Store session
             {
                 std::lock_guard<std::mutex> lock(sessions_mutex_);
                 recovery_sessions_[recovery_id] = std::move(session);
+                LOG_INFO("Recovery session created: " + recovery_id);
             }
 
             // Start recovery in background thread
@@ -236,15 +299,20 @@ namespace photorec
                 [session_ptr, device = request->device(), partition_order = request->
                     partition_order(), options = request->options()]()
                 {
+                    LOG_INFO(
+                        "Starting recovery worker thread for session: " +
+                        session_ptr->id);
                     RecoveryWorker(session_ptr, device, partition_order, &options);
                 });
 
             response->set_success(true);
             response->set_recovery_id(recovery_id);
+            LOG_INFO("Recovery started successfully: " + recovery_id);
             return grpc::Status::OK;
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Start recovery error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Start recovery error: ") + e.what());
             return grpc::Status::OK;
@@ -258,11 +326,15 @@ namespace photorec
                                                        response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_DEBUG(
+            "GetRecoveryStatus request received for session: " + request->recovery_id());
+
         try
         {
             RecoverySession* session = GetRecoverySession(request->recovery_id());
             if (!session)
             {
+                LOG_ERROR("Invalid recovery ID: " + request->recovery_id());
                 response->set_success(false);
                 response->set_error_message("Invalid recovery ID");
                 return grpc::Status::OK;
@@ -279,11 +351,16 @@ namespace photorec
             status->set_is_complete(session->completed);
             status->set_error_message(session->error_message);
 
+            LOG_DEBUG("Recovery status for " + request->recovery_id() +
+                ": " + session->status + " (" +
+                std::to_string(session->files_recovered) + " files recovered)");
+
             response->set_success(true);
             return grpc::Status::OK;
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Get status error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Get status error: ") + e.what());
             return grpc::Status::OK;
@@ -295,31 +372,38 @@ namespace photorec
                                                   StopRecoveryResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO("StopRecovery request received for session: " + request->recovery_id());
+
         try
         {
             RecoverySession* session = GetRecoverySession(request->recovery_id());
             if (!session)
             {
+                LOG_ERROR("Invalid recovery ID: " + request->recovery_id());
                 response->set_success(false);
                 response->set_error_message("Invalid recovery ID");
                 return grpc::Status::OK;
             }
 
             // Stop the recovery
+            LOG_DEBUG("Stopping recovery session: " + request->recovery_id());
             session->running = false;
             abort_photorec(session->context);
 
             // Wait for thread to finish
             if (session->recovery_thread.joinable())
             {
+                LOG_DEBUG("Waiting for recovery thread to finish");
                 session->recovery_thread.join();
             }
 
+            LOG_INFO("Recovery stopped successfully: " + request->recovery_id());
             response->set_success(true);
             return grpc::Status::OK;
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Stop recovery error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Stop recovery error: ") + e.what());
             return grpc::Status::OK;
@@ -332,23 +416,30 @@ namespace photorec
                                                       ConfigureOptionsResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO(
+            "ConfigureOptions request received for context: " + request->context_id());
+
         try
         {
             ph_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
                 response->set_success(false);
                 response->set_error_message("Invalid context ID");
                 return grpc::Status::OK;
             }
 
+            LOG_DEBUG("Applying recovery options");
             ApplyRecoveryOptions(ctx, request->options());
 
             response->set_success(true);
+            LOG_INFO("Options configured successfully");
             return grpc::Status::OK;
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Configure options error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(
                 std::string("Configure options error: ") + e.what());
@@ -361,11 +452,14 @@ namespace photorec
                                                    GetStatisticsResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO("GetStatistics request received for context: " + request->context_id());
+
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            const ph_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
                 response->set_success(false);
                 response->set_error_message("Invalid context ID");
                 return grpc::Status::OK;
@@ -388,10 +482,24 @@ namespace photorec
 
                     total_recovered += file_stats[i].recovered;
                     total_failed += file_stats[i].not_recovered;
+
+                    LOG_DEBUG(
+                        "File type " + std::string(file_stats[i].file_hint->extension) +
+                        ": " + std::to_string(file_stats[i].recovered) + " recovered, " +
+                        std::to_string(file_stats[i].not_recovered) + " failed");
                 }
 
                 response->set_total_files_recovered(total_recovered);
                 response->set_total_files_failed(total_failed);
+
+                LOG_INFO(
+                    "Statistics: " + std::to_string(total_recovered) +
+                    " files recovered, " +
+                    std::to_string(total_failed) + " files failed");
+            }
+            else
+            {
+                LOG_WARNING("No file statistics available");
             }
 
             response->set_success(true);
@@ -399,6 +507,7 @@ namespace photorec
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Get statistics error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Get statistics error: ") + e.what());
             return grpc::Status::OK;
@@ -410,23 +519,28 @@ namespace photorec
                                              CleanupResponse* response)
     {
         (void)context; // Suppress unused parameter warning
+        LOG_INFO("Cleanup request received for context: " + request->context_id());
+
         try
         {
             ph_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
                 response->set_success(false);
                 response->set_error_message("Invalid context ID");
                 return grpc::Status::OK;
             }
 
             // Clean up context
+            LOG_DEBUG("Finishing PhotoRec context: " + request->context_id());
             finish_photorec(ctx);
 
             // Remove from contexts map
             {
                 std::lock_guard<std::mutex> lock(contexts_mutex_);
                 contexts_.erase(request->context_id());
+                LOG_INFO("Context cleaned up and removed: " + request->context_id());
             }
 
             response->set_success(true);
@@ -434,6 +548,7 @@ namespace photorec
         }
         catch (const std::exception& e)
         {
+            LOG_ERROR("Cleanup error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Cleanup error: ") + e.what());
             return grpc::Status::OK;
@@ -445,14 +560,19 @@ namespace photorec
                                             int partition_order,
                                             const RecoveryOptions* options)
     {
+        LOG_INFO("Recovery worker started for session: " + session->id +
+            " on device: " + device);
+
         try
         {
             ph_cli_context_t* ctx = session->context;
 
             // Apply recovery options
+            LOG_DEBUG("Applying recovery options");
             ApplyRecoveryOptions(ctx, *options);
 
             // Change to target device
+            LOG_DEBUG("Changing to target device: " + device);
             disk_t* disk = change_disk(ctx, device.c_str());
             if (!disk)
             {
@@ -460,15 +580,18 @@ namespace photorec
                 session->error_message = "Failed to access device: " + device;
                 session->completed = true;
                 session->running = false;
+                LOG_ERROR("Failed to access device: " + device);
                 return;
             }
 
             // Set total size
             session->total_size = disk->disk_size;
+            LOG_INFO("Disk size: " + std::to_string(disk->disk_size) + " bytes");
 
             // Change partition if specified
             if (partition_order >= 0)
             {
+                LOG_DEBUG("Changing to partition: " + std::to_string(partition_order));
                 partition_t* partition = change_part(ctx, partition_order,
                                                      options->enable_ext2_optimization(),
                                                      options->carve_free_space_only());
@@ -479,15 +602,20 @@ namespace photorec
                         std::to_string(partition_order);
                     session->completed = true;
                     session->running = false;
+                    LOG_ERROR(
+                        "Failed to access partition: " + std::to_string(partition_order));
                     return;
                 }
                 session->total_size = partition->part_size;
+                LOG_INFO(
+                    "Partition size: " + std::to_string(partition->part_size) + " bytes");
             }
 
             // Start recovery
+            LOG_INFO("Starting PhotoRec recovery process");
             UpdateRecoveryStatus(session, STATUS_FIND_OFFSET, 0);
 
-            int result = run_photorec(ctx);
+            const int result = run_photorec(ctx);
 
             // Update final status
             {
@@ -495,12 +623,17 @@ namespace photorec
                 if (result == 0)
                 {
                     session->status = "Completed successfully";
+                    LOG_INFO(
+                        "Recovery completed successfully for session: " + session->id);
                 }
                 else
                 {
                     session->status = "Completed with errors";
                     session->error_message = "Recovery process returned error code: " +
                         std::to_string(result);
+                    LOG_WARNING(
+                        "Recovery completed with errors for session: " + session->id +
+                        " (error code: " + std::to_string(result) + ")");
                 }
                 session->completed = true;
                 session->running = false;
@@ -512,6 +645,8 @@ namespace photorec
             session->error_message = std::string("Recovery worker error: ") + e.what();
             session->completed = true;
             session->running = false;
+            LOG_ERROR(
+                "Recovery worker error for session " + session->id + ": " + e.what());
         }
     }
 
@@ -523,6 +658,10 @@ namespace photorec
         session->status = StatusToString(status);
         session->current_offset = offset;
         session->files_recovered = session->context->params.file_nbr;
+
+        LOG_DEBUG("Recovery status update for session " + session->id +
+            ": " + session->status + " at offset " + std::to_string(offset) +
+            " (" + std::to_string(session->files_recovered) + " files recovered)");
     }
 
     std::string PhotoRecGrpcServer::StatusToString(photorec_status_t status)
@@ -535,10 +674,8 @@ namespace photorec
         case STATUS_EXT2_ON_BF: return "Brute force with filesystem optimization";
         case STATUS_EXT2_OFF: return "Main recovery without filesystem optimization";
         case STATUS_EXT2_OFF_BF: return "Brute force without filesystem optimization";
-        case STATUS_EXT2_ON_SAVE_EVERYTHING: return
-                "Save everything mode with optimization";
-        case STATUS_EXT2_OFF_SAVE_EVERYTHING: return
-                "Save everything mode without optimization";
+        case STATUS_EXT2_ON_SAVE_EVERYTHING: return "Save everything mode with optimization";
+        case STATUS_EXT2_OFF_SAVE_EVERYTHING: return "Save everything mode without optimization";
         case STATUS_QUIT: return "Recovery completed";
         default: return "Unknown status";
         }
@@ -587,6 +724,14 @@ namespace photorec
     void PhotoRecGrpcServer::ApplyRecoveryOptions(ph_cli_context_t* ctx,
                                                   const RecoveryOptions& options)
     {
+        LOG_DEBUG("Applying recovery options - Paranoid: " +
+            std::to_string(options.paranoid_mode()) +
+            ", Keep corrupted: " + std::to_string(options.keep_corrupted_files()) +
+            ", Ext2 optimization: " + std::to_string(options.enable_ext2_optimization()) +
+            ", Expert mode: " + std::to_string(options.expert_mode()) +
+            ", Low memory: " + std::to_string(options.low_memory_mode()) +
+            ", Verbose: " + std::to_string(options.verbose_output()));
+
         // Apply basic options
         change_options(ctx, options.paranoid_mode(),
                        options.keep_corrupted_files(),
@@ -599,6 +744,10 @@ namespace photorec
         if (!options.enabled_file_types().empty() || !options.disabled_file_types().
             empty())
         {
+            LOG_DEBUG("Applying file type filters - Enabled: " +
+                std::to_string(options.enabled_file_types().size()) +
+                ", Disabled: " + std::to_string(options.disabled_file_types().size()));
+
             // Convert to arrays for the API
             std::vector<char*> enabled_exts;
             std::vector<char*> disabled_exts;
@@ -623,10 +772,12 @@ namespace photorec
     {
         if (running_)
         {
+            LOG_WARNING("Server is already running");
             return false;
         }
 
         server_address_ = address;
+        LOG_INFO("Starting PhotoRec gRPC Server on " + address);
 
         grpc::ServerBuilder builder;
         builder.AddListeningPort(address, grpc::InsecureServerCredentials());
@@ -635,11 +786,12 @@ namespace photorec
         server_ = builder.BuildAndStart();
         if (!server_)
         {
+            LOG_ERROR("Failed to start gRPC server on " + address);
             return false;
         }
 
         running_ = true;
-        std::cout << "PhotoRec gRPC Server listening on " << address << std::endl;
+        LOG_INFO("PhotoRec gRPC Server started successfully on " + address);
         return true;
     }
 
@@ -647,8 +799,10 @@ namespace photorec
     {
         if (running_ && server_)
         {
+            LOG_INFO("Stopping PhotoRec gRPC Server");
             server_->Shutdown();
             running_ = false;
+            LOG_INFO("PhotoRec gRPC Server stopped");
         }
     }
 
@@ -656,7 +810,9 @@ namespace photorec
     {
         if (server_)
         {
+            LOG_INFO("Waiting for server to finish");
             server_->Wait();
+            LOG_INFO("Server finished");
         }
     }
 } // namespace photorec

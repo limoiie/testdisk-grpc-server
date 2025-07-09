@@ -76,6 +76,8 @@ add_executable(testdisk_grpc_wrapper
     src/main.cpp
     src/photorec_grpc_server.cpp
     src/photorec_grpc_server.h
+    src/logger.cpp
+    src/logger.h
     ${PROTO_SRCS}
     ${PROTO_HDRS}
     ${GRPC_SRCS}

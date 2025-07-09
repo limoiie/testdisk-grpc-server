@@ -2,12 +2,13 @@
 #include <csignal>
 #include <grpcpp/grpcpp.h>
 #include "photorec_grpc_server.h"
+#include "logger.h"
 
 std::atomic<bool> g_shutdown_requested{false};
 
 void SignalHandler(int signal)
 {
-    std::cout << "\nReceived signal " << signal << ", shutting down..." << std::endl;
+    photorec::LOG_INFO("Received signal " + std::to_string(signal) + ", shutting down...");
     g_shutdown_requested = true;
 }
 
@@ -27,6 +28,9 @@ int main(int argc, char* argv[])
 
     // Default server address
     std::string server_address = "0.0.0.0:50051";
+    
+    // Default log level
+    photorec::LogLevel log_level = photorec::LogLevel::INFO;
 
     // Parse command line arguments
     for (int i = 1; i < argc; ++i)
@@ -37,11 +41,22 @@ int main(int argc, char* argv[])
             std::cout << "Usage: " << argv[0] << " [OPTIONS]" << std::endl;
             std::cout << "Options:" << std::endl;
             std::cout << "  --address, -a ADDRESS    Server address (default: 0.0.0.0:50051)" << std::endl;
+            std::cout << "  --log-level, -l LEVEL    Log level: debug, info, warning, error (default: info)" << std::endl;
+            std::cout << "  --verbose, -v            Enable verbose logging (same as --log-level debug)" << std::endl;
+            std::cout << "  --quiet, -q              Enable quiet logging (same as --log-level error)" << std::endl;
             std::cout << "  --help, -h               Show this help message" << std::endl;
+            std::cout << std::endl;
+            std::cout << "Log Levels:" << std::endl;
+            std::cout << "  debug     - Show all messages (most verbose)" << std::endl;
+            std::cout << "  info      - Show info, warning, and error messages" << std::endl;
+            std::cout << "  warning   - Show warning and error messages only" << std::endl;
+            std::cout << "  error     - Show error messages only (least verbose)" << std::endl;
             std::cout << std::endl;
             std::cout << "Examples:" << std::endl;
             std::cout << "  " << argv[0] << " --address 127.0.0.1:50051" << std::endl;
-            std::cout << "  " << argv[0] << " -a 0.0.0.0:8080" << std::endl;
+            std::cout << "  " << argv[0] << " -a 0.0.0.0:8080 --log-level debug" << std::endl;
+            std::cout << "  " << argv[0] << " --verbose" << std::endl;
+            std::cout << "  " << argv[0] << " --quiet" << std::endl;
             return 0;
         }
         else if (arg == "--address" || arg == "-a")
@@ -56,6 +71,48 @@ int main(int argc, char* argv[])
                 return 1;
             }
         }
+        else if (arg == "--log-level" || arg == "-l")
+        {
+            if (i + 1 < argc)
+            {
+                std::string level_str = argv[++i];
+                if (level_str == "debug")
+                {
+                    log_level = photorec::LogLevel::DEBUG;
+                }
+                else if (level_str == "info")
+                {
+                    log_level = photorec::LogLevel::INFO;
+                }
+                else if (level_str == "warning")
+                {
+                    log_level = photorec::LogLevel::WARNING;
+                }
+                else if (level_str == "error")
+                {
+                    log_level = photorec::LogLevel::ERROR;
+                }
+                else
+                {
+                    std::cerr << "Error: Invalid log level '" << level_str << "'" << std::endl;
+                    std::cerr << "Valid levels: debug, info, warning, error" << std::endl;
+                    return 1;
+                }
+            }
+            else
+            {
+                std::cerr << "Error: --log-level requires an argument" << std::endl;
+                return 1;
+            }
+        }
+        else if (arg == "--verbose" || arg == "-v")
+        {
+            log_level = photorec::LogLevel::DEBUG;
+        }
+        else if (arg == "--quiet" || arg == "-q")
+        {
+            log_level = photorec::LogLevel::ERROR;
+        }
         else
         {
             std::cerr << "Unknown option: " << arg << std::endl;
@@ -66,16 +123,25 @@ int main(int argc, char* argv[])
 
     try
     {
+        // Set the log level
+        photorec::Logger::Instance().SetLogLevel(log_level);
+        
+        // Log startup information
+        std::string level_str = (log_level == photorec::LogLevel::DEBUG ? "DEBUG" :
+                                log_level == photorec::LogLevel::INFO ? "INFO" :
+                                log_level == photorec::LogLevel::WARNING ? "WARNING" : "ERROR");
+        photorec::LOG_INFO("PhotoRec gRPC Server starting with log level: " + level_str);
+        
         // Create and start the gRPC server
         photorec::PhotoRecGrpcServer server;
 
         if (!server.Start(server_address))
         {
-            std::cerr << "Failed to start server on " << server_address << std::endl;
+            photorec::LOG_ERROR("Failed to start server on " + server_address);
             return 1;
         }
 
-        std::cout << "Server started successfully on " << server_address << std::endl;
+        photorec::LOG_INFO("Server started successfully on " + server_address);
         std::cout << "Press Ctrl+C to stop the server" << std::endl;
 
         // Wait for shutdown signal
@@ -84,15 +150,15 @@ int main(int argc, char* argv[])
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
-        std::cout << "Shutting down server..." << std::endl;
+        photorec::LOG_INFO("Shutting down server...");
         server.Stop();
         server.Wait();
 
-        std::cout << "Server stopped successfully" << std::endl;
+        photorec::LOG_INFO("Server stopped successfully");
     }
     catch (const std::exception& e)
     {
-        std::cerr << "Fatal error: " << e.what() << std::endl;
+        photorec::LOG_ERROR("Fatal error: " + std::string(e.what()));
         return 1;
     }
 
