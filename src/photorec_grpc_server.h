@@ -66,6 +66,18 @@ namespace photorec
                                    const GetPartitionsRequest* request,
                                    GetPartitionsResponse* response) override;
 
+        grpc::Status GetArchs(grpc::ServerContext* context,
+                              const GetArchsRequest* request,
+                              GetArchsResponse* response) override;
+
+        grpc::Status SetArchForCurrentDisk(grpc::ServerContext* context,
+                                           const SetArchForCurrentDiskRequest* request,
+                                           SetArchForCurrentDiskResponse* response) override;
+
+        grpc::Status GetFileOptions(grpc::ServerContext* context,
+                                    const GetFileOptionsRequest* request,
+                                    GetFileOptionsResponse* response) override;
+
         grpc::Status StartRecovery(grpc::ServerContext* context,
                                    const StartRecoveryRequest* request,
                                    StartRecoveryResponse* response) override;

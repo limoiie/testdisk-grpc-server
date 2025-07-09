@@ -13,6 +13,15 @@ service PhotoRecService {
   // Get list of partitions on a disk
   rpc GetPartitions(GetPartitionsRequest) returns (GetPartitionsResponse);
   
+  // Get available partition table architectures
+  rpc GetArchs(GetArchsRequest) returns (GetArchsResponse);
+  
+  // Set architecture for current disk
+  rpc SetArchForCurrentDisk(SetArchForCurrentDiskRequest) returns (SetArchForCurrentDiskResponse);
+  
+  // Get file type options configuration
+  rpc GetFileOptions(GetFileOptionsRequest) returns (GetFileOptionsResponse);
+  
   // Start file recovery process
   rpc StartRecovery(StartRecoveryRequest) returns (StartRecoveryResponse);
   
@@ -58,6 +67,8 @@ message DiskInfo {
   string model = 4;
   string serial_no = 5;
   string firmware_rev = 6;
+  string arch = 7;                    // Current partition table architecture
+  string autodetected_arch = 8;       // Auto-detected partition table architecture
 }
 
 message GetDisksResponse {
@@ -86,6 +97,55 @@ message GetPartitionsResponse {
   bool success = 1;
   string error_message = 2;
   repeated PartitionInfo partitions = 3;
+}
+
+// Get available partition table architectures
+message GetArchsRequest {
+  string context_id = 1;
+}
+
+message ArchInfo {
+  string name = 1;         // Architecture name (part_name_option)
+  string description = 2;  // Architecture description (part_name)
+  string type = 3;         // Human-readable type/description (msg_part_type)
+  bool is_available = 4;
+}
+
+message GetArchsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated ArchInfo architectures = 3;
+}
+
+// Set architecture for current disk
+message SetArchForCurrentDiskRequest {
+  string context_id = 1;
+  string arch_name = 2;                // Architecture name to set (can be empty for auto-detect)
+}
+
+message SetArchForCurrentDiskResponse {
+  bool success = 1;
+  string error_message = 2;
+  string selected_arch = 3;            // Name of the selected architecture
+}
+
+// Get file type options configuration
+message GetFileOptionsRequest {
+  string context_id = 1;
+}
+
+message FileTypeOption {
+  string extension = 1;                // File extension (e.g., "jpg", "pdf")
+  string description = 2;              // Human-readable description
+  uint64 max_filesize = 3;            // Maximum expected file size
+  bool is_enabled = 4;                // Whether this file type is enabled for recovery
+  bool enabled_by_default = 5;        // Whether this type is enabled by default
+}
+
+message GetFileOptionsResponse {
+  bool success = 1;
+  string error_message = 2;
+  repeated FileTypeOption file_types = 3;
 }
 
 // Start recovery process

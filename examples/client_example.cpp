@@ -67,6 +67,8 @@ public:
                 std::cout << "    Size: " << disk.size() << " bytes" << std::endl;
                 std::cout << "    Model: " << disk.model() << std::endl;
                 std::cout << "    Serial: " << disk.serial_no() << std::endl;
+                std::cout << "    Architecture: " << disk.arch() << std::endl;
+                std::cout << "    Auto-detected Architecture: " << disk.autodetected_arch() << std::endl;
                 std::cout << std::endl;
             }
             return true;
@@ -114,9 +116,97 @@ public:
         }
     }
 
+    // Get available architectures
+    [[nodiscard]] bool GetArchs(const std::string& context_id) const
+    {
+        photorec::GetArchsRequest request;
+        request.set_context_id(context_id);
+
+        photorec::GetArchsResponse response;
+        ClientContext context;
+
+        Status status = stub_->GetArchs(&context, request, &response);
+
+        if (status.ok() && response.success())
+        {
+            std::cout << "\nAvailable architectures:" << std::endl;
+            for (const auto& arch : response.architectures())
+            {
+                std::cout << "  Name: " << arch.name() << std::endl;
+                std::cout << "    Description: " << arch.description() << std::endl;
+                std::cout << "    Type: " << arch.type() << std::endl;
+                std::cout << "    Available: " << (arch.is_available() ? "Yes" : "No") << std::endl;
+                std::cout << std::endl;
+            }
+            return true;
+        }
+        else
+        {
+            std::cerr << "Failed to get architectures: " << response.error_message() << std::endl;
+            return false;
+        }
+    }
+
+    // Set architecture for current disk
+    [[nodiscard]] bool SetArchForCurrentDisk(const std::string& context_id,
+                                             const std::string& arch_name) const
+    {
+        photorec::SetArchForCurrentDiskRequest request;
+        request.set_context_id(context_id);
+        request.set_arch_name(arch_name);
+
+        photorec::SetArchForCurrentDiskResponse response;
+        ClientContext context;
+
+        Status status = stub_->SetArchForCurrentDisk(&context, request, &response);
+
+        if (status.ok() && response.success())
+        {
+            std::cout << "Architecture set successfully: " << response.selected_arch() << std::endl;
+            return true;
+        }
+        else
+        {
+            std::cerr << "Failed to set architecture: " << response.error_message() << std::endl;
+            return false;
+        }
+    }
+
+    // Get file type options
+    [[nodiscard]] bool GetFileOptions(const std::string& context_id) const
+    {
+        photorec::GetFileOptionsRequest request;
+        request.set_context_id(context_id);
+
+        photorec::GetFileOptionsResponse response;
+        ClientContext context;
+
+        Status status = stub_->GetFileOptions(&context, request, &response);
+
+        if (status.ok() && response.success())
+        {
+            std::cout << "\nFile type options:" << std::endl;
+            for (const auto& file_type : response.file_types())
+            {
+                std::cout << "  Extension: " << file_type.extension() << std::endl;
+                std::cout << "    Description: " << file_type.description() << std::endl;
+                std::cout << "    Max filesize: " << file_type.max_filesize() << " bytes" << std::endl;
+                std::cout << "    Enabled: " << (file_type.is_enabled() ? "Yes" : "No") << std::endl;
+                std::cout << "    Enabled by default: " << (file_type.enabled_by_default() ? "Yes" : "No") << std::endl;
+                std::cout << std::endl;
+            }
+            return true;
+        }
+        else
+        {
+            std::cerr << "Failed to get file options: " << response.error_message() << std::endl;
+            return false;
+        }
+    }
+
     // Start recovery process
     bool StartRecovery(const std::string& context_id, const std::string& device,
-                       int partition_order, const std::string& recovery_dir,
+                       const int partition_order, const std::string& recovery_dir,
                        std::string& recovery_id) const
     {
         photorec::StartRecoveryRequest request;
@@ -128,8 +218,11 @@ public:
         // Configure recovery options
         auto* options = request.mutable_options();
         options->set_paranoid_mode(1);
-        options->set_keep_corrupted_files(true);
+        options->set_keep_corrupted_files(false);
         options->set_enable_ext2_optimization(true);
+        options->set_expert_mode(false);
+        options->set_low_memory_mode(false);
+        options->set_carve_free_space_only(false);
         options->set_verbose_output(true);
 
         photorec::StartRecoveryResponse response;
@@ -265,6 +358,24 @@ int main(int argc, char* argv[])
 
         // Get available disks
         if (!client.GetDisks(context_id))
+        {
+            return 1;
+        }
+
+        // Get available architectures
+        if (!client.GetArchs(context_id))
+        {
+            return 1;
+        }
+
+        // // Set architecture (auto-detect by passing empty string)
+        // if (!client.SetArchForCurrentDisk(context_id, ""))
+        // {
+        //     return 1;
+        // }
+
+        // Get file type options
+        if (!client.GetFileOptions(context_id))
         {
             return 1;
         }

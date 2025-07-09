@@ -106,8 +106,7 @@ namespace photorec
                 std::to_string(request->log_mode()));
 
             const auto recup_dir = const_cast<char*>(request->recovery_dir().c_str());
-            const auto device = const_cast<char*>(request->device().
-                                                     c_str());
+            const auto device = const_cast<char*>(request->device().c_str());
             ph_cli_context_t* ctx = init_photorec(1, argv,
                                                   recup_dir,
                                                   device,
@@ -251,6 +250,151 @@ namespace photorec
             LOG_ERROR("Get partitions error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Get partitions error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status PhotoRecGrpcServer::GetArchs(grpc::ServerContext* context,
+                                              const GetArchsRequest* request,
+                                              GetArchsResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("GetArchs request received for context: " + request->context_id());
+
+        try
+        {
+            const ph_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            // Iterate through available architectures
+            if (ctx->list_arch)
+            {
+                for (int i = 0; ctx->list_arch[i] != nullptr; ++i)
+                {
+                    if (const arch_fnct_t* arch = ctx->list_arch[i]; arch)
+                    {
+                        ArchInfo* proto_arch = response->add_architectures();
+                        proto_arch->set_name(arch->part_name_option ? arch->part_name_option : "");
+                        proto_arch->set_description(arch->part_name ? arch->part_name : "");
+                        proto_arch->set_type(arch->msg_part_type ? arch->msg_part_type : "");
+                        proto_arch->set_is_available(true);
+                        LOG_DEBUG("Found architecture: " + std::string(arch->part_name_option ? arch->part_name_option : ""));
+                    }
+                }
+            }
+
+            LOG_INFO("Found " + std::to_string(response->architectures_size()) + " architectures");
+            response->set_success(true);
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Get architectures error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("Get architectures error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status PhotoRecGrpcServer::SetArchForCurrentDisk(grpc::ServerContext* context,
+                                                           const SetArchForCurrentDiskRequest* request,
+                                                           SetArchForCurrentDiskResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("SetArchForCurrentDisk request received - Arch: " + request->arch_name() +
+            " (context: " + request->context_id() + ")");
+
+        try
+        {
+            const ph_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            // Set the architecture
+            const char* arch_name = request->arch_name().empty() ? nullptr : request->arch_name().c_str();
+            if (const arch_fnct_t* selected_arch = change_arch(ctx, const_cast<char*>(arch_name)))
+            {
+                response->set_success(true);
+                response->set_selected_arch(selected_arch->part_name_option ? selected_arch->part_name_option : "");
+                LOG_INFO("Architecture set successfully: " + response->selected_arch());
+            }
+            else
+            {
+                LOG_ERROR("Failed to set architecture: " + request->arch_name());
+                response->set_success(false);
+                response->set_error_message("Failed to set architecture: " + request->arch_name());
+            }
+
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Set architecture error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("Set architecture error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status PhotoRecGrpcServer::GetFileOptions(grpc::ServerContext* context,
+                                                    const GetFileOptionsRequest* request,
+                                                    GetFileOptionsResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("GetFileOptions request received for context: " + request->context_id());
+
+        try
+        {
+            ph_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            // Iterate through file type options
+            if (ctx->options.list_file_format)
+            {
+                for (int i = 0; array_file_enable[i].file_hint != nullptr; ++i)
+                {
+                    const file_enable_t* file_enable = &array_file_enable[i];
+                    const file_hint_t* file_hint = file_enable->file_hint;
+                    
+                    if (file_hint)
+                    {
+                        FileTypeOption* proto_option = response->add_file_types();
+                        proto_option->set_extension(file_hint->extension ? file_hint->extension : "");
+                        proto_option->set_description(file_hint->description ? file_hint->description : "");
+                        proto_option->set_max_filesize(file_hint->max_filesize);
+                        proto_option->set_is_enabled(file_enable->enable != 0);
+                        proto_option->set_enabled_by_default(file_hint->enable_by_default != 0);
+                        LOG_DEBUG("Found file type: " + std::string(file_hint->extension ? file_hint->extension : ""));
+                    }
+                }
+            }
+
+            LOG_INFO("Found " + std::to_string(response->file_types_size()) + " file types");
+            response->set_success(true);
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Get file options error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("Get file options error: ") + e.what());
             return grpc::Status::OK;
         }
     }
@@ -615,6 +759,7 @@ namespace photorec
             LOG_INFO("Starting PhotoRec recovery process");
             UpdateRecoveryStatus(session, STATUS_FIND_OFFSET, 0);
 
+            LOG_INFO("Running PhotoRec recovery in directory: " + std::string(ctx->params.recup_dir));
             const int result = run_photorec(ctx);
 
             // Update final status
@@ -689,6 +834,16 @@ namespace photorec
         proto_disk->set_model(disk->model ? disk->model : "");
         proto_disk->set_serial_no(disk->serial_no ? disk->serial_no : "");
         proto_disk->set_firmware_rev(disk->fw_rev ? disk->fw_rev : "");
+
+        // Set architecture information
+        if (disk->arch)
+        {
+            proto_disk->set_arch(disk->arch->part_name_option ? disk->arch->part_name_option : "");
+        }
+        if (disk->arch_autodetected)
+        {
+            proto_disk->set_autodetected_arch(disk->arch_autodetected->part_name_option ? disk->arch_autodetected->part_name_option : "");
+        }
     }
 
     void PhotoRecGrpcServer::ConvertPartitionInfo(const partition_t* partition,
