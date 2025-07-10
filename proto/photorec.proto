@@ -7,6 +7,9 @@ service PhotoRecService {
   // Initialize PhotoRec context and discover available disks
   rpc Initialize(InitializeRequest) returns (InitializeResponse);
   
+  // Add an image file to the context
+  rpc AddImage(AddImageRequest) returns (AddImageResponse);
+
   // Get list of available disks
   rpc GetDisks(GetDisksRequest) returns (GetDisksResponse);
   
@@ -43,16 +46,27 @@ service PhotoRecService {
 
 // Initialize PhotoRec context
 message InitializeRequest {
-  string device = 1;           // Device path (e.g., "/dev/sda" or image file path)
-  string recovery_dir = 2;     // Recovery output directory
-  int32 log_mode = 3;         // Log mode: 0=no log, 1=info, 2=debug
-  string log_file = 4;        // Log file path (optional)
+  repeated string args = 1;       // Command line arguments (equivalent to argc/argv)
+  int32 log_mode = 2;            // Log mode: 0=no log, 1=info, 2=debug
+  string log_file = 3;           // Log file path (optional)
 }
 
 message InitializeResponse {
   bool success = 1;
   string error_message = 2;
   string context_id = 3;      // Unique context identifier
+}
+
+// Add image file to context
+message AddImageRequest {
+  string context_id = 1;
+  string image_file = 2;      // Path to image file
+}
+
+message AddImageResponse {
+  bool success = 1;
+  string error_message = 2;
+  DiskInfo disk_info = 3;     // Information about the added image (optional)
 }
 
 // Get available disks

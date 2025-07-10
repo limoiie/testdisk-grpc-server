@@ -19,20 +19,15 @@ public:
     }
 
     // Initialize PhotoRec context
-    bool Initialize(const std::string& device, const std::string& recovery_dir,
-                    std::string& context_id) const
+    bool Initialize(std::string& context_id) const
     {
         photorec::InitializeRequest request;
-        request.set_device(device);
-        request.set_recovery_dir(recovery_dir);
         request.set_log_mode(1); // Info level logging
 
         photorec::InitializeResponse response;
         ClientContext context;
 
-        Status status = stub_->Initialize(&context, request, &response);
-
-        if (status.ok() && response.success())
+        if (const Status status = stub_->Initialize(&context, request, &response); status.ok() && response.success())
         {
             context_id = response.context_id();
             std::cout << "Initialized PhotoRec context: " << context_id << std::endl;
@@ -42,6 +37,30 @@ public:
         {
             std::cerr << "Failed to initialize: " << response.error_message() <<
                 std::endl;
+            return false;
+        }
+    }
+
+    // Add image
+    [[nodiscard]] bool AddImage(const std::string& context_id, const std::string& image_file) const
+    {
+        photorec::AddImageRequest request;
+        request.set_context_id(context_id);
+        request.set_image_file(image_file);
+
+        photorec::AddImageResponse response;
+        ClientContext context;
+
+        Status status = stub_->AddImage(&context, request, &response);
+
+        if (status.ok() && response.success())
+        {
+            std::cout << "Added image: " << image_file << std::endl;
+            return true;
+        }
+        else
+        {
+            std::cerr << "Failed to add image: " << response.error_message() << std::endl;
             return false;
         }
     }
@@ -68,7 +87,8 @@ public:
                 std::cout << "    Model: " << disk.model() << std::endl;
                 std::cout << "    Serial: " << disk.serial_no() << std::endl;
                 std::cout << "    Architecture: " << disk.arch() << std::endl;
-                std::cout << "    Auto-detected Architecture: " << disk.autodetected_arch() << std::endl;
+                std::cout << "    Auto-detected Architecture: " << disk.
+                    autodetected_arch() << std::endl;
                 std::cout << std::endl;
             }
             return true;
@@ -142,7 +162,8 @@ public:
         }
         else
         {
-            std::cerr << "Failed to get architectures: " << response.error_message() << std::endl;
+            std::cerr << "Failed to get architectures: " << response.error_message() <<
+                std::endl;
             return false;
         }
     }
@@ -285,8 +306,7 @@ public:
             }
             else
             {
-                std::cerr << "Failed to get recovery status: " << response.error_message()
-                    << std::endl;
+                std::cerr << "Failed to get recovery status: " << response.error_message() << std::endl;
                 return false;
             }
 
@@ -351,7 +371,13 @@ int main(int argc, char* argv[])
         std::string recovery_id;
         std::string context_id;
         // Initialize PhotoRec
-        if (!client.Initialize(device_path, recovery_dir, context_id))
+        if (!client.Initialize(context_id))
+        {
+            return 1;
+        }
+
+        // Add image
+        if (!client.AddImage(context_id, device_path))
         {
             return 1;
         }

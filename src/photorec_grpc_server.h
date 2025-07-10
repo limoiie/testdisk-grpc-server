@@ -58,6 +58,10 @@ namespace photorec
                                 const InitializeRequest* request,
                                 InitializeResponse* response) override;
 
+        grpc::Status AddImage(grpc::ServerContext* context,
+                              const AddImageRequest* request,
+                              AddImageResponse* response) override;
+
         grpc::Status GetDisks(grpc::ServerContext* context,
                               const GetDisksRequest* request,
                               GetDisksResponse* response) override;
@@ -151,7 +155,7 @@ namespace photorec
         static void RecoveryWorker(RecoverySession* session,
                                    const std::string& device,
                                    int partition_order,
-                                   const RecoveryOptions* options);
+                                   const std::string& recup_dir, const RecoveryOptions* options);
 
         // Helper methods
         static void UpdateRecoveryStatus(RecoverySession* session,

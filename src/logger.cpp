@@ -16,6 +16,7 @@ namespace photorec
 
         std::cout << GetTimestamp() << " [" << GetLevelString(level) << "] "
             << GetLocationString(function, file, line) << ": " << message << std::endl;
+        std::flush(std::cout);
     }
 
     void Logger::Debug(const std::string& message, const std::string& function,

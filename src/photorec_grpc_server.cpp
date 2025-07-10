@@ -95,21 +95,40 @@ namespace photorec
                                                 InitializeResponse* response)
     {
         (void)context; // Suppress unused parameter warning
-        LOG_INFO("Initialize request received - Device: " + request->device() +
-            ", Recovery dir: " + request->recovery_dir());
+        LOG_INFO("Initialize request received with " + std::to_string(request->args_size()) + " arguments");
 
         try
         {
-            // Create PhotoRec context
-            char* argv[] = {const_cast<char*>("photorec"), nullptr};
-            LOG_DEBUG("Initializing PhotoRec context with log mode: " +
-                std::to_string(request->log_mode()));
+            // Prepare command line arguments from the request
+            std::vector<char*> argv_vector;
+            std::vector<std::string> arg_strings;
 
-            const auto recup_dir = const_cast<char*>(request->recovery_dir().c_str());
-            const auto device = const_cast<char*>(request->device().c_str());
-            ph_cli_context_t* ctx = init_photorec(1, argv,
-                                                  recup_dir,
-                                                  device,
+            if (request->args_size() == 0)
+            {
+                // Default argument if none provided
+                arg_strings.emplace_back("photorec");
+            }
+            else
+            {
+                // Convert protobuf repeated string to char* array
+                for (const auto& arg : request->args())
+                {
+                    arg_strings.emplace_back(arg);
+                }
+            }
+
+            // Create char* array for C API
+            for (auto& arg : arg_strings)
+            {
+                argv_vector.push_back(const_cast<char*>(arg.c_str()));
+            }
+            argv_vector.push_back(nullptr); // Null terminate
+
+            LOG_DEBUG("Initializing PhotoRec context with log mode: " +
+                std::to_string(request->log_mode()) + ", argc: " + std::to_string(arg_strings.size()));
+
+            ph_cli_context_t* ctx = init_photorec(static_cast<int>(arg_strings.size()),
+                                                  argv_vector.data(),
                                                   request->log_mode(),
                                                   request->log_file().empty()
                                                       ? nullptr
@@ -143,6 +162,55 @@ namespace photorec
             LOG_ERROR("Initialization error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Initialization error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status PhotoRecGrpcServer::AddImage(grpc::ServerContext* context,
+                                              const AddImageRequest* request,
+                                              AddImageResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("AddImage request received for context: " + request->context_id() +
+            ", Image file: " + request->image_file());
+
+        try
+        {
+            ph_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            // Add image file to context
+            LOG_DEBUG("Adding image file: " + request->image_file());
+            disk_t* disk = add_image(ctx, request->image_file().c_str());
+
+            if (!disk)
+            {
+                LOG_ERROR("Failed to add image file: " + request->image_file());
+                response->set_success(false);
+                response->set_error_message("Failed to add image file: " + request->image_file());
+                return grpc::Status::OK;
+            }
+
+            LOG_INFO("Image file added successfully: " + request->image_file());
+            response->set_success(true);
+
+            // Optionally populate disk info
+            DiskInfo* disk_info = response->mutable_disk_info();
+            ConvertDiskInfo(disk, disk_info);
+
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Add image error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("Add image error: ") + e.what());
             return grpc::Status::OK;
         }
     }
@@ -371,9 +439,7 @@ namespace photorec
                 for (int i = 0; array_file_enable[i].file_hint != nullptr; ++i)
                 {
                     const file_enable_t* file_enable = &array_file_enable[i];
-                    const file_hint_t* file_hint = file_enable->file_hint;
-                    
-                    if (file_hint)
+                    if (const file_hint_t* file_hint = file_enable->file_hint)
                     {
                         FileTypeOption* proto_option = response->add_file_types();
                         proto_option->set_extension(file_hint->extension ? file_hint->extension : "");
@@ -440,13 +506,16 @@ namespace photorec
             // Start recovery in background thread
             RecoverySession* session_ptr = recovery_sessions_[recovery_id].get();
             session_ptr->recovery_thread = std::thread(
-                [session_ptr, device = request->device(), partition_order = request->
-                    partition_order(), options = request->options()]()
+                [session_ptr,
+                    device = request->device(),
+                    partition_order = request-> partition_order(),
+                    recup_dir = request->recovery_dir(),
+                    options = request->options()]()
                 {
                     LOG_INFO(
                         "Starting recovery worker thread for session: " +
                         session_ptr->id);
-                    RecoveryWorker(session_ptr, device, partition_order, &options);
+                    RecoveryWorker(session_ptr, device, partition_order, recup_dir, &options);
                 });
 
             response->set_success(true);
@@ -701,11 +770,11 @@ namespace photorec
 
     void PhotoRecGrpcServer::RecoveryWorker(RecoverySession* session,
                                             const std::string& device,
-                                            int partition_order,
+                                            const int partition_order,
+                                            const std::string& recup_dir,
                                             const RecoveryOptions* options)
     {
-        LOG_INFO("Recovery worker started for session: " + session->id +
-            " on device: " + device);
+        LOG_INFO("Recovery worker started for session: " + session->id + " on device: " + device);
 
         try
         {
@@ -754,6 +823,10 @@ namespace photorec
                 LOG_INFO(
                     "Partition size: " + std::to_string(partition->part_size) + " bytes");
             }
+
+            // Setup recovery dir
+            LOG_DEBUG("Recovery to dir: " + recup_dir);
+            change_recup_dir(ctx, recup_dir.c_str());
 
             // Start recovery
             LOG_INFO("Starting PhotoRec recovery process");
