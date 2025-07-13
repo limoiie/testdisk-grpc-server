@@ -97,14 +97,121 @@ message GetPartitionsRequest {
   string device = 2;
 }
 
+// Partition status types
+enum PartitionStatus {
+  STATUS_DELETED = 0;
+  STATUS_PRIM = 1;
+  STATUS_PRIM_BOOT = 2;
+  STATUS_LOG = 3;
+  STATUS_EXT = 4;
+  STATUS_EXT_IN_EXT = 5;
+}
+
+// Unified partition types
+enum UnifiedPartitionType {
+  UP_UNK = 0;
+  UP_APFS = 1;
+  UP_BEOS = 2;
+  UP_BTRFS = 3;
+  UP_CRAMFS = 4;
+  UP_EXFAT = 5;
+  UP_EXT2 = 6;
+  UP_EXT3 = 7;
+  UP_EXT4 = 8;
+  UP_EXTENDED = 9;
+  UP_FAT12 = 10;
+  UP_FAT16 = 11;
+  UP_FAT32 = 12;
+  UP_FATX = 13;
+  UP_FREEBSD = 14;
+  UP_F2FS = 15;
+  UP_GFS2 = 16;
+  UP_HFS = 17;
+  UP_HFSP = 18;
+  UP_HFSX = 19;
+  UP_HPFS = 20;
+  UP_ISO = 21;
+  UP_JFS = 22;
+  UP_LINSWAP = 23;
+  UP_LINSWAP2 = 24;
+  UP_LINSWAP_8K = 25;
+  UP_LINSWAP2_8K = 26;
+  UP_LINSWAP2_8KBE = 27;
+  UP_LUKS = 28;
+  UP_LVM = 29;
+  UP_LVM2 = 30;
+  UP_MD = 31;
+  UP_MD1 = 32;
+  UP_NETWARE = 33;
+  UP_NTFS = 34;
+  UP_OPENBSD = 35;
+  UP_OS2MB = 36;
+  UP_ReFS = 37;
+  UP_RFS = 38;
+  UP_RFS2 = 39;
+  UP_RFS3 = 40;
+  UP_RFS4 = 41;
+  UP_SUN = 42;
+  UP_SYSV4 = 43;
+  UP_UFS = 44;
+  UP_UFS2 = 45;
+  UP_UFS_LE = 46;
+  UP_UFS2_LE = 47;
+  UP_VMFS = 48;
+  UP_WBFS = 49;
+  UP_XFS = 50;
+  UP_XFS2 = 51;
+  UP_XFS3 = 52;
+  UP_XFS4 = 53;
+  UP_XFS5 = 54;
+  UP_ZFS = 55;
+}
+
+// Error code types
+enum ErrorCodeType {
+  BAD_NOERR = 0;
+  BAD_SS = 1;
+  BAD_ES = 2;
+  BAD_SH = 3;
+  BAD_EH = 4;
+  BAD_EBS = 5;
+  BAD_RS = 6;
+  BAD_SC = 7;
+  BAD_EC = 8;
+  BAD_SCOUNT = 9;
+}
+
+// EFI GUID structure
+message EfiGuid {
+  uint32 time_low = 1;
+  uint32 time_mid = 2;
+  uint32 time_hi_and_version = 3;
+  uint32 clock_seq_hi_and_reserved = 4;  // uint8_t as uint32 for protobuf
+  uint32 clock_seq_low = 5;              // uint8_t as uint32 for protobuf
+  bytes node = 6;                        // uint8_t[6] as bytes
+}
+
 message PartitionInfo {
-  string name = 1;
-  string filesystem = 2;
-  uint64 offset = 3;
-  uint64 size = 4;
-  string info = 5;
-  int32 order = 6;
-  string status = 7;
+  string name = 1;                    // partname
+  string filesystem = 2;              // fsname
+  uint64 offset = 3;                  // part_offset
+  uint64 size = 4;                    // part_size
+  string info = 5;                    // info
+  int32 order = 6;                    // order
+  PartitionStatus status = 7;          // status
+  uint64 superblock_origin_offset = 8; // sborg_offset
+  uint64 superblock_offset = 9;       // sb_offset
+  uint32 superblock_size = 10;        // sb_size
+  uint32 blocksize = 11;              // blocksize
+  EfiGuid partition_uuid = 12;        // part_uuid
+  EfiGuid partition_type_gpt = 13;    // part_type_gpt
+  uint32 partition_type_humax = 14;   // part_type_humax
+  uint32 partition_type_i386 = 15;    // part_type_i386
+  uint32 partition_type_mac = 16;     // part_type_mac
+  uint32 partition_type_sun = 17;     // part_type_sun
+  uint32 partition_type_xbox = 18;    // part_type_xbox
+  UnifiedPartitionType unified_type = 19; // upart_type
+  ErrorCodeType error_code = 20;      // errcode
 }
 
 message GetPartitionsResponse {
