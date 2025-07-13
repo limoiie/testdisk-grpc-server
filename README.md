@@ -20,6 +20,7 @@ This project wraps the PhotoRec API (`photorec_api.h`) into a gRPC server, allow
 - **Real-time Progress Monitoring**: Track recovery progress with detailed status updates
 - **Flexible Configuration**: Configure recovery options per session
 - **Thread-Safe**: Handles multiple concurrent recovery sessions
+- **Remote Shutdown**: Gracefully shutdown the server via gRPC API
 - **Cross-Platform**: Works on Linux, macOS, and Windows
 
 ## Prerequisites
@@ -167,6 +168,12 @@ rpc Cleanup(CleanupRequest) returns (CleanupResponse)
 ```
 Cleans up resources for a context.
 
+#### Shutdown
+```cpp
+rpc Shutdown(ShutdownRequest) returns (ShutdownResponse)
+```
+Gracefully shuts down the server. Can force shutdown even with active recoveries.
+
 ## Protocol Buffer Definition
 
 The service interface is defined in `proto/photorec.proto`:
@@ -182,8 +189,11 @@ service PhotoRecService {
   rpc ConfigureOptions(ConfigureOptionsRequest) returns (ConfigureOptionsResponse);
   rpc GetStatistics(GetStatisticsRequest) returns (GetStatisticsResponse);
   rpc Cleanup(CleanupRequest) returns (CleanupResponse);
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
 ```
+
+For detailed information about the shutdown functionality, see [SHUTDOWN_GUIDE.md](SHUTDOWN_GUIDE.md).
 
 ## Client Libraries
 

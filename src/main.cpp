@@ -1,5 +1,7 @@
 #include <iostream>
 #include <csignal>
+#include <chrono>
+#include <thread>
 #include <grpcpp/grpcpp.h>
 #include "photorec_grpc_server.h"
 #include "logger.h"
@@ -134,6 +136,12 @@ int main(int argc, char* argv[])
         
         // Create and start the gRPC server
         photorec::PhotoRecGrpcServer server;
+
+        // Set up shutdown callback
+        server.SetShutdownCallback([&]() {
+            photorec::LOG_INFO("Shutdown callback triggered");
+            g_shutdown_requested = true;
+        });
 
         if (!server.Start(server_address))
         {

@@ -6,6 +6,7 @@
 #include <mutex>
 #include <thread>
 #include <atomic>
+#include <functional>
 
 // gRPC includes
 #include <grpcpp/server.h>
@@ -106,6 +107,10 @@ namespace photorec
                              const CleanupRequest* request,
                              CleanupResponse* response) override;
 
+        grpc::Status Shutdown(grpc::ServerContext* context,
+                              const ShutdownRequest* request,
+                              ShutdownResponse* response) override;
+
         /**
          * @brief Start the gRPC server
          * @param address Server address (e.g., "0.0.0.0:50051")
@@ -132,11 +137,21 @@ namespace photorec
             Logger::Instance().SetLogLevel(level);
         }
 
+        /**
+         * @brief Set a callback function to be called when shutdown is requested
+         * @param callback Function to call when shutdown is requested
+         */
+        void SetShutdownCallback(std::function<void()> callback)
+        {
+            shutdown_callback_ = std::move(callback);
+        }
+
     private:
         // Server management
         std::unique_ptr<grpc::Server> server_;
         std::string server_address_;
         std::atomic<bool> running_{false};
+        std::function<void()> shutdown_callback_;
 
         // Context and session management
         std::unordered_map<std::string, ph_cli_context_t*> contexts_;

@@ -42,6 +42,9 @@ service PhotoRecService {
   
   // Clean up resources
   rpc Cleanup(CleanupRequest) returns (CleanupResponse);
+  
+  // Shutdown the server
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
 
 // Initialize PhotoRec context
@@ -368,4 +371,16 @@ message CleanupRequest {
 message CleanupResponse {
   bool success = 1;
   string error_message = 2;
+}
+
+// Shutdown the server
+message ShutdownRequest {
+  bool force = 1;              // Force shutdown even if there are active recoveries
+  string reason = 2;           // Optional reason for shutdown
+}
+
+message ShutdownResponse {
+  bool success = 1;
+  string error_message = 2;
+  string message = 3;          // Status message about shutdown
 } 

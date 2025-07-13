@@ -1,6 +1,7 @@
 #include "photorec_grpc_server.h"
 #include "logger.h"
 #include <random>
+#include <chrono>
 
 namespace photorec
 {
@@ -764,6 +765,111 @@ namespace photorec
             LOG_ERROR("Cleanup error: " + std::string(e.what()));
             response->set_success(false);
             response->set_error_message(std::string("Cleanup error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status PhotoRecGrpcServer::Shutdown(grpc::ServerContext* context,
+                                              const ShutdownRequest* request,
+                                              ShutdownResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("Shutdown request received - Force: " + 
+                 std::to_string(request->force()) + 
+                 ", Reason: " + request->reason());
+
+        try
+        {
+            // Check if there are active recovery sessions
+            int active_sessions = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessions_mutex_);
+                for (const auto& session_pair : recovery_sessions_)
+                {
+                    if (session_pair.second && session_pair.second->running)
+                    {
+                        active_sessions++;
+                    }
+                }
+            }
+
+            // If there are active sessions and force is not set, return an error
+            if (active_sessions > 0 && !request->force())
+            {
+                LOG_WARNING("Shutdown request denied - " + 
+                           std::to_string(active_sessions) + " active recovery sessions");
+                response->set_success(false);
+                response->set_error_message("Cannot shutdown: " + 
+                                          std::to_string(active_sessions) + 
+                                          " active recovery sessions. Use force=true to shutdown anyway.");
+                response->set_message("Shutdown denied due to active recovery sessions");
+                return grpc::Status::OK;
+            }
+
+            if (active_sessions > 0)
+            {
+                LOG_WARNING("Force shutting down with " + 
+                           std::to_string(active_sessions) + " active recovery sessions");
+                
+                // Stop all active recovery sessions
+                std::lock_guard<std::mutex> lock(sessions_mutex_);
+                for (const auto& session_pair : recovery_sessions_)
+                {
+                    if (session_pair.second && session_pair.second->running)
+                    {
+                        RecoverySession* session = session_pair.second.get();
+                        LOG_INFO("Stopping recovery session: " + session->id);
+                        session->running = false;
+                        abort_photorec(session->context);
+                        
+                        // Wait for thread to finish
+                        if (session->recovery_thread.joinable())
+                        {
+                            session->recovery_thread.join();
+                        }
+                    }
+                }
+            }
+
+            // Log the shutdown reason if provided
+            if (!request->reason().empty())
+            {
+                LOG_INFO("Shutdown reason: " + request->reason());
+            }
+
+            // Trigger server shutdown asynchronously
+            LOG_INFO("Initiating server shutdown");
+            std::thread shutdown_thread([this]() {
+                // Give the response time to be sent
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                
+                // Call shutdown callback if set
+                if (shutdown_callback_) {
+                    shutdown_callback_();
+                }
+                
+                // Stop the server
+                this->Stop();
+            });
+            shutdown_thread.detach();
+
+            response->set_success(true);
+            response->set_message("Server shutdown initiated");
+            if (active_sessions > 0)
+            {
+                response->set_message("Server shutdown initiated (forced with " + 
+                                    std::to_string(active_sessions) + " active sessions stopped)");
+            }
+            
+            LOG_INFO("Shutdown response sent - Server will stop shortly");
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Shutdown error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("Shutdown error: ") + e.what());
+            response->set_message("Shutdown failed");
             return grpc::Status::OK;
         }
     }

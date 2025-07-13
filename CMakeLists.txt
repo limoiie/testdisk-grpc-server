@@ -93,9 +93,19 @@ add_executable(client_example
     ${GRPC_HDRS}
 )
 
+# Add shutdown client executable
+add_executable(shutdown_client
+    examples/shutdown_client.cpp
+    ${PROTO_SRCS}
+    ${PROTO_HDRS}
+    ${GRPC_SRCS}
+    ${GRPC_HDRS}
+)
+
 # Include directories for generated files
 target_include_directories(testdisk_grpc_wrapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(client_example PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(shutdown_client PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # Use pkg-config to get gRPC++ and absl linker flags
 execute_process(
@@ -119,6 +129,12 @@ target_link_libraries(client_example
     ${GRPC_ABSL_PKG_LIBS}
 )
 
+# Link libraries for shutdown client
+target_link_libraries(shutdown_client
+    protobuf::libprotobuf
+    ${GRPC_ABSL_PKG_LIBS}
+)
+
 # Set compiler flags
 target_compile_options(testdisk_grpc_wrapper PRIVATE
     -Wall
@@ -132,10 +148,16 @@ target_compile_options(client_example PRIVATE
     -Wpedantic
 )
 
+target_compile_options(shutdown_client PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+)
+
 # Print configuration info
 message(STATUS "PhotoRec gRPC Wrapper Configuration:")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Protobuf: ${Protobuf_VERSION}")
 message(STATUS "  gRPC: Found")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "  Targets: testdisk_grpc_wrapper, client_example")
+message(STATUS "  Targets: testdisk_grpc_wrapper, client_example, shutdown_client")
