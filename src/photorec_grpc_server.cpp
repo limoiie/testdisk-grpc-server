@@ -1,7 +1,6 @@
 #include "photorec_grpc_server.h"
 #include "logger.h"
 #include <random>
-#include <chrono>
 
 namespace photorec
 {
@@ -992,15 +991,15 @@ namespace photorec
     {
         switch (status)
         {
-        case STATUS_FIND_OFFSET: return "Finding optimal block alignment";
-        case STATUS_UNFORMAT: return "FAT unformat recovery";
-        case STATUS_EXT2_ON: return "Main recovery with filesystem optimization";
-        case STATUS_EXT2_ON_BF: return "Brute force with filesystem optimization";
-        case STATUS_EXT2_OFF: return "Main recovery without filesystem optimization";
-        case STATUS_EXT2_OFF_BF: return "Brute force without filesystem optimization";
-        case STATUS_EXT2_ON_SAVE_EVERYTHING: return "Save everything mode with optimization";
-        case STATUS_EXT2_OFF_SAVE_EVERYTHING: return "Save everything mode without optimization";
-        case STATUS_QUIT: return "Recovery completed";
+        case ::STATUS_FIND_OFFSET: return "Finding optimal block alignment";
+        case ::STATUS_UNFORMAT: return "FAT unformat recovery";
+        case ::STATUS_EXT2_ON: return "Main recovery with filesystem optimization";
+        case ::STATUS_EXT2_ON_BF: return "Brute force with filesystem optimization";
+        case ::STATUS_EXT2_OFF: return "Main recovery without filesystem optimization";
+        case ::STATUS_EXT2_OFF_BF: return "Brute force without filesystem optimization";
+        case ::STATUS_EXT2_ON_SAVE_EVERYTHING: return "Save everything mode with optimization";
+        case ::STATUS_EXT2_OFF_SAVE_EVERYTHING: return "Save everything mode without optimization";
+        case ::STATUS_QUIT: return "Recovery completed";
         default: return "Unknown status";
         }
     }
@@ -1038,17 +1037,17 @@ namespace photorec
         // Convert status to enum
         switch (partition->status)
         {
-        case STATUS_DELETED: proto_partition->set_status(PartitionStatus::STATUS_DELETED);
+        case ::STATUS_DELETED: proto_partition->set_status(PartitionStatus::STATUS_DELETED);
             break;
-        case STATUS_PRIM: proto_partition->set_status(PartitionStatus::STATUS_PRIM);
+        case ::STATUS_PRIM: proto_partition->set_status(PartitionStatus::STATUS_PRIM);
             break;
-        case STATUS_PRIM_BOOT: proto_partition->set_status(PartitionStatus::STATUS_PRIM_BOOT);
+        case ::STATUS_PRIM_BOOT: proto_partition->set_status(PartitionStatus::STATUS_PRIM_BOOT);
             break;
-        case STATUS_LOG: proto_partition->set_status(PartitionStatus::STATUS_LOG);
+        case ::STATUS_LOG: proto_partition->set_status(PartitionStatus::STATUS_LOG);
             break;
-        case STATUS_EXT: proto_partition->set_status(PartitionStatus::STATUS_EXT);
+        case ::STATUS_EXT: proto_partition->set_status(PartitionStatus::STATUS_EXT);
             break;
-        case STATUS_EXT_IN_EXT: proto_partition->set_status(PartitionStatus::STATUS_EXT_IN_EXT);
+        case ::STATUS_EXT_IN_EXT: proto_partition->set_status(PartitionStatus::STATUS_EXT_IN_EXT);
             break;
         default: proto_partition->set_status(PartitionStatus::STATUS_DELETED);
             break;
@@ -1093,78 +1092,78 @@ namespace photorec
         // Convert unified partition type
         switch (partition->upart_type)
         {
-        case UP_UNK: proto_partition->set_unified_type(UnifiedPartitionType::UP_UNK); break;
-        case UP_APFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_APFS); break;
-        case UP_BEOS: proto_partition->set_unified_type(UnifiedPartitionType::UP_BEOS); break;
-        case UP_BTRFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_BTRFS); break;
-        case UP_CRAMFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_CRAMFS); break;
-        case UP_EXFAT: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXFAT); break;
-        case UP_EXT2: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXT2); break;
-        case UP_EXT3: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXT3); break;
-        case UP_EXT4: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXT4); break;
-        case UP_EXTENDED: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXTENDED); break;
-        case UP_FAT12: proto_partition->set_unified_type(UnifiedPartitionType::UP_FAT12); break;
-        case UP_FAT16: proto_partition->set_unified_type(UnifiedPartitionType::UP_FAT16); break;
-        case UP_FAT32: proto_partition->set_unified_type(UnifiedPartitionType::UP_FAT32); break;
-        case UP_FATX: proto_partition->set_unified_type(UnifiedPartitionType::UP_FATX); break;
-        case UP_FREEBSD: proto_partition->set_unified_type(UnifiedPartitionType::UP_FREEBSD); break;
-        case UP_F2FS: proto_partition->set_unified_type(UnifiedPartitionType::UP_F2FS); break;
-        case UP_GFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_GFS2); break;
-        case UP_HFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_HFS); break;
-        case UP_HFSP: proto_partition->set_unified_type(UnifiedPartitionType::UP_HFSP); break;
-        case UP_HFSX: proto_partition->set_unified_type(UnifiedPartitionType::UP_HFSX); break;
-        case UP_HPFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_HPFS); break;
-        case UP_ISO: proto_partition->set_unified_type(UnifiedPartitionType::UP_ISO); break;
-        case UP_JFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_JFS); break;
-        case UP_LINSWAP: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP); break;
-        case UP_LINSWAP2: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP2); break;
-        case UP_LINSWAP_8K: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP_8K); break;
-        case UP_LINSWAP2_8K: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP2_8K); break;
-        case UP_LINSWAP2_8KBE: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP2_8KBE); break;
-        case UP_LUKS: proto_partition->set_unified_type(UnifiedPartitionType::UP_LUKS); break;
-        case UP_LVM: proto_partition->set_unified_type(UnifiedPartitionType::UP_LVM); break;
-        case UP_LVM2: proto_partition->set_unified_type(UnifiedPartitionType::UP_LVM2); break;
-        case UP_MD: proto_partition->set_unified_type(UnifiedPartitionType::UP_MD); break;
-        case UP_MD1: proto_partition->set_unified_type(UnifiedPartitionType::UP_MD1); break;
-        case UP_NETWARE: proto_partition->set_unified_type(UnifiedPartitionType::UP_NETWARE); break;
-        case UP_NTFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_NTFS); break;
-        case UP_OPENBSD: proto_partition->set_unified_type(UnifiedPartitionType::UP_OPENBSD); break;
-        case UP_OS2MB: proto_partition->set_unified_type(UnifiedPartitionType::UP_OS2MB); break;
-        case UP_ReFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_ReFS); break;
-        case UP_RFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS); break;
-        case UP_RFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS2); break;
-        case UP_RFS3: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS3); break;
-        case UP_RFS4: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS4); break;
-        case UP_SUN: proto_partition->set_unified_type(UnifiedPartitionType::UP_SUN); break;
-        case UP_SYSV4: proto_partition->set_unified_type(UnifiedPartitionType::UP_SYSV4); break;
-        case UP_UFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS); break;
-        case UP_UFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS2); break;
-        case UP_UFS_LE: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS_LE); break;
-        case UP_UFS2_LE: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS2_LE); break;
-        case UP_VMFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_VMFS); break;
-        case UP_WBFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_WBFS); break;
-        case UP_XFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS); break;
-        case UP_XFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS2); break;
-        case UP_XFS3: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS3); break;
-        case UP_XFS4: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS4); break;
-        case UP_XFS5: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS5); break;
-        case UP_ZFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_ZFS); break;
+        case ::UP_UNK: proto_partition->set_unified_type(UnifiedPartitionType::UP_UNK); break;
+        case ::UP_APFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_APFS); break;
+        case ::UP_BEOS: proto_partition->set_unified_type(UnifiedPartitionType::UP_BEOS); break;
+        case ::UP_BTRFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_BTRFS); break;
+        case ::UP_CRAMFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_CRAMFS); break;
+        case ::UP_EXFAT: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXFAT); break;
+        case ::UP_EXT2: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXT2); break;
+        case ::UP_EXT3: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXT3); break;
+        case ::UP_EXT4: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXT4); break;
+        case ::UP_EXTENDED: proto_partition->set_unified_type(UnifiedPartitionType::UP_EXTENDED); break;
+        case ::UP_FAT12: proto_partition->set_unified_type(UnifiedPartitionType::UP_FAT12); break;
+        case ::UP_FAT16: proto_partition->set_unified_type(UnifiedPartitionType::UP_FAT16); break;
+        case ::UP_FAT32: proto_partition->set_unified_type(UnifiedPartitionType::UP_FAT32); break;
+        case ::UP_FATX: proto_partition->set_unified_type(UnifiedPartitionType::UP_FATX); break;
+        case ::UP_FREEBSD: proto_partition->set_unified_type(UnifiedPartitionType::UP_FREEBSD); break;
+        case ::UP_F2FS: proto_partition->set_unified_type(UnifiedPartitionType::UP_F2FS); break;
+        case ::UP_GFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_GFS2); break;
+        case ::UP_HFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_HFS); break;
+        case ::UP_HFSP: proto_partition->set_unified_type(UnifiedPartitionType::UP_HFSP); break;
+        case ::UP_HFSX: proto_partition->set_unified_type(UnifiedPartitionType::UP_HFSX); break;
+        case ::UP_HPFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_HPFS); break;
+        case ::UP_ISO: proto_partition->set_unified_type(UnifiedPartitionType::UP_ISO); break;
+        case ::UP_JFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_JFS); break;
+        case ::UP_LINSWAP: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP); break;
+        case ::UP_LINSWAP2: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP2); break;
+        case ::UP_LINSWAP_8K: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP_8K); break;
+        case ::UP_LINSWAP2_8K: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP2_8K); break;
+        case ::UP_LINSWAP2_8KBE: proto_partition->set_unified_type(UnifiedPartitionType::UP_LINSWAP2_8KBE); break;
+        case ::UP_LUKS: proto_partition->set_unified_type(UnifiedPartitionType::UP_LUKS); break;
+        case ::UP_LVM: proto_partition->set_unified_type(UnifiedPartitionType::UP_LVM); break;
+        case ::UP_LVM2: proto_partition->set_unified_type(UnifiedPartitionType::UP_LVM2); break;
+        case ::UP_MD: proto_partition->set_unified_type(UnifiedPartitionType::UP_MD); break;
+        case ::UP_MD1: proto_partition->set_unified_type(UnifiedPartitionType::UP_MD1); break;
+        case ::UP_NETWARE: proto_partition->set_unified_type(UnifiedPartitionType::UP_NETWARE); break;
+        case ::UP_NTFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_NTFS); break;
+        case ::UP_OPENBSD: proto_partition->set_unified_type(UnifiedPartitionType::UP_OPENBSD); break;
+        case ::UP_OS2MB: proto_partition->set_unified_type(UnifiedPartitionType::UP_OS2MB); break;
+        case ::UP_ReFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_ReFS); break;
+        case ::UP_RFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS); break;
+        case ::UP_RFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS2); break;
+        case ::UP_RFS3: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS3); break;
+        case ::UP_RFS4: proto_partition->set_unified_type(UnifiedPartitionType::UP_RFS4); break;
+        case ::UP_SUN: proto_partition->set_unified_type(UnifiedPartitionType::UP_SUN); break;
+        case ::UP_SYSV4: proto_partition->set_unified_type(UnifiedPartitionType::UP_SYSV4); break;
+        case ::UP_UFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS); break;
+        case ::UP_UFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS2); break;
+        case ::UP_UFS_LE: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS_LE); break;
+        case ::UP_UFS2_LE: proto_partition->set_unified_type(UnifiedPartitionType::UP_UFS2_LE); break;
+        case ::UP_VMFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_VMFS); break;
+        case ::UP_WBFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_WBFS); break;
+        case ::UP_XFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS); break;
+        case ::UP_XFS2: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS2); break;
+        case ::UP_XFS3: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS3); break;
+        case ::UP_XFS4: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS4); break;
+        case ::UP_XFS5: proto_partition->set_unified_type(UnifiedPartitionType::UP_XFS5); break;
+        case ::UP_ZFS: proto_partition->set_unified_type(UnifiedPartitionType::UP_ZFS); break;
         default: proto_partition->set_unified_type(UnifiedPartitionType::UP_UNK); break;
         }
 
         // Convert error code
         switch (partition->errcode)
         {
-        case BAD_NOERR: proto_partition->set_error_code(ErrorCodeType::BAD_NOERR); break;
-        case BAD_SS: proto_partition->set_error_code(ErrorCodeType::BAD_SS); break;
-        case BAD_ES: proto_partition->set_error_code(ErrorCodeType::BAD_ES); break;
-        case BAD_SH: proto_partition->set_error_code(ErrorCodeType::BAD_SH); break;
-        case BAD_EH: proto_partition->set_error_code(ErrorCodeType::BAD_EH); break;
-        case BAD_EBS: proto_partition->set_error_code(ErrorCodeType::BAD_EBS); break;
-        case BAD_RS: proto_partition->set_error_code(ErrorCodeType::BAD_RS); break;
-        case BAD_SC: proto_partition->set_error_code(ErrorCodeType::BAD_SC); break;
-        case BAD_EC: proto_partition->set_error_code(ErrorCodeType::BAD_EC); break;
-        case BAD_SCOUNT: proto_partition->set_error_code(ErrorCodeType::BAD_SCOUNT); break;
+        case ::BAD_NOERR: proto_partition->set_error_code(ErrorCodeType::BAD_NOERR); break;
+        case ::BAD_SS: proto_partition->set_error_code(ErrorCodeType::BAD_SS); break;
+        case ::BAD_ES: proto_partition->set_error_code(ErrorCodeType::BAD_ES); break;
+        case ::BAD_SH: proto_partition->set_error_code(ErrorCodeType::BAD_SH); break;
+        case ::BAD_EH: proto_partition->set_error_code(ErrorCodeType::BAD_EH); break;
+        case ::BAD_EBS: proto_partition->set_error_code(ErrorCodeType::BAD_EBS); break;
+        case ::BAD_RS: proto_partition->set_error_code(ErrorCodeType::BAD_RS); break;
+        case ::BAD_SC: proto_partition->set_error_code(ErrorCodeType::BAD_SC); break;
+        case ::BAD_EC: proto_partition->set_error_code(ErrorCodeType::BAD_EC); break;
+        case ::BAD_SCOUNT: proto_partition->set_error_code(ErrorCodeType::BAD_SCOUNT); break;
         default: proto_partition->set_error_code(ErrorCodeType::BAD_NOERR); break;
         }
     }
