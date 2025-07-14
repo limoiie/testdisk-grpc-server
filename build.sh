@@ -5,6 +5,9 @@
 
 set -e  # Exit on any error
 
+## Following code may cause the grpc++ not found
+# export PKG_CONFIG_PATH="$HOME/.local/lib/pkgconfig:/usr/lib/aarch64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -51,7 +54,7 @@ print_status "Checking build dependencies..."
 
 # Check for CMake
 if ! command -v cmake &> /dev/null; then
-    print_error "CMake not found. Please install CMake 3.31 or higher."
+    print_error "CMake not found. Please install CMake 3.20 or higher."
     exit 1
 fi
 
@@ -60,8 +63,8 @@ CMAKE_VERSION=$(cmake --version | head -n1 | cut -d' ' -f3)
 CMAKE_MAJOR=$(echo $CMAKE_VERSION | cut -d'.' -f1)
 CMAKE_MINOR=$(echo $CMAKE_VERSION | cut -d'.' -f2)
 
-if [ "$CMAKE_MAJOR" -lt 3 ] || ([ "$CMAKE_MAJOR" -eq 3 ] && [ "$CMAKE_MINOR" -lt 31 ]); then
-    print_error "CMake version $CMAKE_VERSION found, but 3.31 or higher is required."
+if [ "$CMAKE_MAJOR" -lt 3 ] || ([ "$CMAKE_MAJOR" -eq 3 ] && [ "$CMAKE_MINOR" -lt 20 ]); then
+    print_error "CMake version $CMAKE_VERSION found, but 3.20 or higher is required."
     exit 1
 fi
 
@@ -99,7 +102,7 @@ print_success "Protobuf found"
 if ! pkg-config --exists grpc++; then
     print_error "gRPC++ development libraries not found."
     print_warning "Install with: sudo apt install libgrpc++-dev"
-    exit 1
+    # exit 1
 fi
 
 print_success "gRPC++ found"
@@ -134,7 +137,7 @@ cd build
 
 # Configure with CMake
 print_status "Configuring with CMake..."
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/home/parallels/.local
 
 if [ $? -ne 0 ]; then
     print_error "CMake configuration failed."
@@ -183,4 +186,4 @@ echo "  # Run the client example (in another terminal):"
 echo "  ./client_example localhost:50051 /dev/sda /tmp/recovery"
 echo ""
 print_warning "Note: You may need root privileges to access disk devices."
-echo "" 
+echo ""

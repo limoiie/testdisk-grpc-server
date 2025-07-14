@@ -1,13 +1,14 @@
-cmake_minimum_required(VERSION 3.31)
+cmake_minimum_required(VERSION 3.20)
 project(testdisk_grpc_wrapper)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
 
 # Find required packages
 find_package(PkgConfig REQUIRED)
 
 # Find protobuf first
-find_package(Protobuf REQUIRED)
+find_package(Protobuf 6.31.0 REQUIRED)
 
 # Include our custom CMake modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
@@ -62,7 +63,7 @@ foreach(FIL ${PROTO_FILES})
                "${CMAKE_CURRENT_BINARY_DIR}/${FIL_WE}.grpc.pb.h"
         COMMAND protobuf::protoc
         ARGS --grpc_out=${CMAKE_CURRENT_BINARY_DIR}
-             --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
+             --plugin=protoc-gen-grpc=$<TARGET_FILE:gRPC::grpc_cpp_plugin>
              --proto_path=${CMAKE_CURRENT_SOURCE_DIR}/proto ${FIL_ABS}
         DEPENDS ${FIL} protobuf::protoc
         COMMENT "Running gRPC protocol buffer compiler on ${FIL}"
@@ -107,32 +108,25 @@ target_include_directories(testdisk_grpc_wrapper PRIVATE ${CMAKE_CURRENT_BINARY_
 target_include_directories(client_example PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(shutdown_client PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-# Use pkg-config to get gRPC++ and absl linker flags
-execute_process(
-    COMMAND pkg-config --libs grpc++
-    OUTPUT_VARIABLE GRPC_ABSL_PKG_LIBS
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-separate_arguments(GRPC_ABSL_PKG_LIBS)
-
 # Link the static library and required system libraries for server
 target_link_libraries(testdisk_grpc_wrapper 
-    photorec    # Links libphotorec.a
-    z           # Required by libphotorec.a (zlib)
+    photorec
+    gRPC::grpc++
     protobuf::libprotobuf
-    ${GRPC_ABSL_PKG_LIBS}
+    z           # Required by libphotorec.a (zlib)
+    pthread
 )
 
 # Link libraries for client example
 target_link_libraries(client_example
     protobuf::libprotobuf
-    ${GRPC_ABSL_PKG_LIBS}
+    gRPC::grpc++
 )
 
 # Link libraries for shutdown client
 target_link_libraries(shutdown_client
     protobuf::libprotobuf
-    ${GRPC_ABSL_PKG_LIBS}
+    gRPC::grpc++
 )
 
 # Set compiler flags
