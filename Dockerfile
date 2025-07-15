@@ -1,0 +1,66 @@
+FROM build-env_ubuntu20.04:latest
+
+ARG CMAKE_VERSION=3.31.0
+ARG GRPC_VERSION=1.73.1
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    libz-dev \
+    liblzma-dev \
+    libbz2-dev \
+    liblz4-dev \
+    libzstd-dev \
+    libreadline-dev \
+    libncurses5-dev \
+    libncursesw5-dev \
+    libpthread-stubs0-dev \
+    zlib1g-dev && \
+    apt-get remove -y cmake
+
+WORKDIR /build
+ENV INSTALL_DIR=/usr/local
+
+# Install CMake ${CMAKE_VERSION} from source
+ADD .cache/cmake-${CMAKE_VERSION}.tar.gz /build
+RUN cd /build/cmake-${CMAKE_VERSION} && \
+    ./bootstrap --prefix=${INSTALL_DIR} && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && \
+    rm -rf /build/cmake-${CMAKE_VERSION}
+
+# Install gRPC++ ${GRPC_VERSION} from source
+COPY .cache/grpc-${GRPC_VERSION} /build/grpc-${GRPC_VERSION}
+RUN cd /build/grpc-${GRPC_VERSION} && \
+    mkdir -p cmake/build && \
+    cd cmake/build && \
+    cmake -DgRPC_INSTALL=ON \
+          -DgRPC_BUILD_TESTS=OFF \
+          -DCMAKE_CXX_STANDARD=17 \
+          -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON ../.. && \
+    make -j$(nproc) && \
+    make install && \
+    cd ../.. && \
+    rm -rf /build/grpc-${GRPC_VERSION}
+
+# Mount the source code to /build/testdisk_grpc_server
+COPY ./ /build/testdisk_grpc_server
+
+RUN apt-get install -y lld gettext autopoint
+
+# Build testdisk
+RUN cd /build/testdisk_grpc_server/thirdparty/testdisk && \
+    autoreconf -ifv && \
+    ./configure --prefix=${INSTALL_DIR} --without-ncurses && \
+    make clean && \
+    make -j$(nproc) library && \
+    make library-install
+
+# Build testdisk_grpc_server
+RUN cd /build/testdisk_grpc_server && \
+    ./build.sh
+
+WORKDIR /build/testdisk_grpc_server
+
+ENTRYPOINT ["/bin/bash"]

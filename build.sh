@@ -15,6 +15,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+INSTALL_DIR=/usr/local
+
 # Function to print colored output
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -117,9 +119,9 @@ fi
 print_success "zlib found"
 
 # Check for PhotoRec library
-if [ ! -f "lib/libphotorec.a" ]; then
-    print_error "PhotoRec library (lib/libphotorec.a) not found."
-    print_warning "Please ensure the PhotoRec library is available in the lib/ directory."
+if [ ! -f "${INSTALL_DIR}/lib/libphotorec.a" ]; then
+    print_error "PhotoRec library (${INSTALL_DIR}/lib/libphotorec.a) not found."
+    print_warning "Please ensure the PhotoRec library is available in the ${INSTALL_DIR}/lib/ directory."
     exit 1
 fi
 
@@ -137,7 +139,7 @@ cd build
 
 # Configure with CMake
 print_status "Configuring with CMake..."
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/home/parallels/.local
+cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=${INSTALL_DIR}
 
 if [ $? -ne 0 ]; then
     print_error "CMake configuration failed."

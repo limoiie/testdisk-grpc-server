@@ -17,13 +17,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 find_package(gRPC REQUIRED)
 
 # Include directories
-include_directories(include)
+include_directories(/usr/local/include)
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(/opt/homebrew/include)
 
 # Library directories
-link_directories(lib)
-link_directories(/opt/homebrew/lib)
+link_directories(/usr/local/lib)
 
 # Protobuf generation
 set(PROTO_FILES proto/photorec.proto)
