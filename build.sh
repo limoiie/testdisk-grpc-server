@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# PhotoRec gRPC Wrapper Build Script
-# This script automates the build process for the PhotoRec gRPC wrapper
+# TestDisk gRPC Wrapper Build Script
+# This script automates the build process for the TestDisk gRPC wrapper
 
 set -e  # Exit on any error
 
@@ -118,14 +118,14 @@ fi
 
 print_success "zlib found"
 
-# Check for PhotoRec library
-if [ ! -f "${INSTALL_DIR}/lib/libphotorec.a" ]; then
-    print_error "PhotoRec library (${INSTALL_DIR}/lib/libphotorec.a) not found."
-    print_warning "Please ensure the PhotoRec library is available in the ${INSTALL_DIR}/lib/ directory."
+# Check for TestDisk library
+if [ ! -f "${INSTALL_DIR}/lib/libtestdisk.a" ]; then
+    print_error "TestDisk library (${INSTALL_DIR}/lib/libtestdisk.a) not found."
+    print_warning "Please ensure the TestDisk library is available in the ${INSTALL_DIR}/lib/ directory."
     exit 1
 fi
 
-print_success "PhotoRec library found"
+print_success "TestDisk library found"
 
 # Create build directory
 print_status "Creating build directory..."
@@ -161,8 +161,8 @@ fi
 print_success "Build completed successfully!"
 
 # Check if executables were created
-if [ -f "testdisk_grpc_wrapper" ]; then
-    print_success "Server executable created: testdisk_grpc_wrapper"
+if [ -f "testdisk_grpc_server" ]; then
+    print_success "Server executable created: testdisk_grpc_server"
 else
     print_error "Server executable not found after build."
     exit 1
@@ -179,10 +179,10 @@ echo ""
 print_success "Build completed! You can now run:"
 echo ""
 echo "  # Start the server:"
-echo "  ./testdisk_grpc_wrapper"
+echo "  ./testdisk_grpc_server"
 echo ""
 echo "  # Or with custom address:"
-echo "  ./testdisk_grpc_wrapper --address 127.0.0.1:50051"
+echo "  ./testdisk_grpc_server --address 127.0.0.1:50051"
 echo ""
 echo "  # Run the client example (in another terminal):"
 echo "  ./client_example localhost:50051 /dev/sda /tmp/recovery"

@@ -3,14 +3,14 @@
 #include <chrono>
 #include <thread>
 #include <grpcpp/grpcpp.h>
-#include "photorec_grpc_server.h"
+#include "testdisk_grpc_server.h"
 #include "logger.h"
 
 std::atomic<bool> g_shutdown_requested{false};
 
 void SignalHandler(int signal)
 {
-    photorec::LOG_INFO("Received signal " + std::to_string(signal) + ", shutting down...");
+    testdisk::LOG_INFO("Received signal " + std::to_string(signal) + ", shutting down...");
     g_shutdown_requested = true;
 }
 
@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
     signal(SIGINT, SignalHandler);
     signal(SIGTERM, SignalHandler);
 
-    std::cout << "PhotoRec gRPC Server Starting..." << std::endl;
+    std::cout << "TestDisk gRPC Server Starting..." << std::endl;
     std::cout << "Copyright (C) 1998-2024 Christophe GRENIER <grenier@cgsecurity.org>" << std::endl;
     std::cout << "This software is free software; you can redistribute it and/or modify" << std::endl;
     std::cout << "it under the terms of the GNU General Public License as published by" << std::endl;
@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
     std::string server_address = "0.0.0.0:50051";
     
     // Default log level
-    photorec::LogLevel log_level = photorec::LogLevel::INFO;
+    testdisk::LogLevel log_level = testdisk::LogLevel::INFO;
 
     // Parse command line arguments
     for (int i = 1; i < argc; ++i)
@@ -80,19 +80,19 @@ int main(int argc, char* argv[])
                 std::string level_str = argv[++i];
                 if (level_str == "debug")
                 {
-                    log_level = photorec::LogLevel::DEBUG;
+                    log_level = testdisk::LogLevel::DEBUG;
                 }
                 else if (level_str == "info")
                 {
-                    log_level = photorec::LogLevel::INFO;
+                    log_level = testdisk::LogLevel::INFO;
                 }
                 else if (level_str == "warning")
                 {
-                    log_level = photorec::LogLevel::WARNING;
+                    log_level = testdisk::LogLevel::WARNING;
                 }
                 else if (level_str == "error")
                 {
-                    log_level = photorec::LogLevel::ERROR;
+                    log_level = testdisk::LogLevel::ERROR;
                 }
                 else
                 {
@@ -109,11 +109,11 @@ int main(int argc, char* argv[])
         }
         else if (arg == "--verbose" || arg == "-v")
         {
-            log_level = photorec::LogLevel::DEBUG;
+            log_level = testdisk::LogLevel::DEBUG;
         }
         else if (arg == "--quiet" || arg == "-q")
         {
-            log_level = photorec::LogLevel::ERROR;
+            log_level = testdisk::LogLevel::ERROR;
         }
         else
         {
@@ -126,30 +126,30 @@ int main(int argc, char* argv[])
     try
     {
         // Set the log level
-        photorec::Logger::Instance().SetLogLevel(log_level);
+        testdisk::Logger::Instance().SetLogLevel(log_level);
         
         // Log startup information
-        std::string level_str = (log_level == photorec::LogLevel::DEBUG ? "DEBUG" :
-                                log_level == photorec::LogLevel::INFO ? "INFO" :
-                                log_level == photorec::LogLevel::WARNING ? "WARNING" : "ERROR");
-        photorec::LOG_INFO("PhotoRec gRPC Server starting with log level: " + level_str);
+        std::string level_str = (log_level == testdisk::LogLevel::DEBUG ? "DEBUG" :
+                                log_level == testdisk::LogLevel::INFO ? "INFO" :
+                                log_level == testdisk::LogLevel::WARNING ? "WARNING" : "ERROR");
+        testdisk::LOG_INFO("TestDisk gRPC Server starting with log level: " + level_str);
         
         // Create and start the gRPC server
-        photorec::PhotoRecGrpcServer server;
+        testdisk::TestDiskGrpcServer server;
 
         // Set up shutdown callback
         server.SetShutdownCallback([&]() {
-            photorec::LOG_INFO("Shutdown callback triggered");
+            testdisk::LOG_INFO("Shutdown callback triggered");
             g_shutdown_requested = true;
         });
 
         if (!server.Start(server_address))
         {
-            photorec::LOG_ERROR("Failed to start server on " + server_address);
+            testdisk::LOG_ERROR("Failed to start server on " + server_address);
             return 1;
         }
 
-        photorec::LOG_INFO("Server started successfully on " + server_address);
+        testdisk::LOG_INFO("Server started successfully on " + server_address);
         std::cout << "Press Ctrl+C to stop the server" << std::endl;
 
         // Wait for shutdown signal
@@ -158,15 +158,15 @@ int main(int argc, char* argv[])
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
-        photorec::LOG_INFO("Shutting down server...");
+        testdisk::LOG_INFO("Shutting down server...");
         server.Stop();
         server.Wait();
 
-        photorec::LOG_INFO("Server stopped successfully");
+        testdisk::LOG_INFO("Server stopped successfully");
     }
     catch (const std::exception& e)
     {
-        photorec::LOG_ERROR("Fatal error: " + std::string(e.what()));
+        testdisk::LOG_ERROR("Fatal error: " + std::string(e.what()));
         return 1;
     }
 

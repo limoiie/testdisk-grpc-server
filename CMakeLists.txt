@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(testdisk_grpc_wrapper)
+project(testdisk_grpc_server)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
@@ -24,7 +24,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 link_directories(/usr/local/lib)
 
 # Protobuf generation
-set(PROTO_FILES proto/photorec.proto)
+set(PROTO_FILES proto/testdisk.proto)
 
 # Generate protobuf files using standard CMake functions with proper proto path
 protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
@@ -71,10 +71,10 @@ endforeach()
 set_source_files_properties(${GRPC_SRCS} ${GRPC_HDRS} PROPERTIES GENERATED TRUE)
 
 # Add server executable
-add_executable(testdisk_grpc_wrapper 
+add_executable(testdisk_grpc_server 
     src/main.cpp
-    src/photorec_grpc_server.cpp
-    src/photorec_grpc_server.h
+    src/testdisk_grpc_server.cpp
+    src/testdisk_grpc_server.h
     src/logger.cpp
     src/logger.h
     ${PROTO_SRCS}
@@ -102,16 +102,16 @@ add_executable(shutdown_client
 )
 
 # Include directories for generated files
-target_include_directories(testdisk_grpc_wrapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(testdisk_grpc_server PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(client_example PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(shutdown_client PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # Link the static library and required system libraries for server
-target_link_libraries(testdisk_grpc_wrapper 
-    photorec
+target_link_libraries(testdisk_grpc_server 
+    testdisk
     gRPC::grpc++
     protobuf::libprotobuf
-    z           # Required by libphotorec.a (zlib)
+    z           # Required by libtestdisk.a (zlib)
     pthread
 )
 
@@ -128,7 +128,7 @@ target_link_libraries(shutdown_client
 )
 
 # Set compiler flags
-target_compile_options(testdisk_grpc_wrapper PRIVATE
+target_compile_options(testdisk_grpc_server PRIVATE
     -Wall
     -Wextra
     -Wpedantic
@@ -147,9 +147,9 @@ target_compile_options(shutdown_client PRIVATE
 )
 
 # Print configuration info
-message(STATUS "PhotoRec gRPC Wrapper Configuration:")
+message(STATUS "TestDisk gRPC Server Configuration:")
 message(STATUS "  C++ Standard: ${CMAKE_CXX_STANDARD}")
 message(STATUS "  Protobuf: ${Protobuf_VERSION}")
 message(STATUS "  gRPC: Found")
 message(STATUS "  Build Type: ${CMAKE_BUILD_TYPE}")
-message(STATUS "  Targets: testdisk_grpc_wrapper, client_example, shutdown_client")
+message(STATUS "  Targets: testdisk_grpc_server, client_example, shutdown_client")

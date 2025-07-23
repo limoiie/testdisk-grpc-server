@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package photorec;
+package testdisk;
 
-// Service definition for PhotoRec file recovery operations
-service PhotoRecService {
-  // Initialize PhotoRec context and discover available disks
+// Service definition for TestDisk file recovery operations
+service TestDiskService {
+  // Initialize TestDisk context and discover available disks
   rpc Initialize(InitializeRequest) returns (InitializeResponse);
   
   // Add an image file to the context
@@ -45,9 +45,60 @@ service PhotoRecService {
   
   // Shutdown the server
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+  
+  // ============================================================================
+  // PARTITION RECOVERY OPERATIONS - Search and Recovery
+  // ============================================================================
+  
+  // Search for partitions on disk
+  rpc SearchPartitions(SearchPartitionsRequest) returns (SearchPartitionsResponse);
+  
+  // Validate disk geometry settings
+  rpc ValidateDiskGeometry(ValidateDiskGeometryRequest) returns (ValidateDiskGeometryResponse);
+  
+  // Write partition table to disk
+  rpc WritePartitionTable(WritePartitionTableRequest) returns (WritePartitionTableResponse);
+  
+  // ============================================================================
+  // PARTITION STRUCTURE OPERATIONS - Navigation and Management
+  // ============================================================================
+  
+  // Test partition structure validity
+  rpc TestPartitionStructure(TestPartitionStructureRequest) returns (TestPartitionStructureResponse);
+  
+  // Change partition status to next state
+  rpc ChangePartitionStatusNext(ChangePartitionStatusNextRequest) returns (ChangePartitionStatusNextResponse);
+  
+  // Change partition status to previous state
+  rpc ChangePartitionStatusPrev(ChangePartitionStatusPrevRequest) returns (ChangePartitionStatusPrevResponse);
+  
+  // Change partition type
+  rpc ChangePartitionType(ChangePartitionTypeRequest) returns (ChangePartitionTypeResponse);
+  
+  // List files in partition
+  rpc ListPartitionFiles(ListPartitionFilesRequest) returns (ListPartitionFilesResponse);
+  
+  // Save partition table backup
+  rpc SavePartitionBackup(SavePartitionBackupRequest) returns (SavePartitionBackupResponse);
+  
+  // Load partition table from backup
+  rpc LoadPartitionBackup(LoadPartitionBackupRequest) returns (LoadPartitionBackupResponse);
+  
+  // ============================================================================
+  // CONFIGURATION FUNCTIONS - Recovery Partition Operations
+  // ============================================================================
+  
+  // Delete partition table
+  rpc DeletePartitionTable(DeletePartitionTableRequest) returns (DeletePartitionTableResponse);
+  
+  // Write MBR code
+  rpc WriteMbrCode(WriteMbrCodeRequest) returns (WriteMbrCodeResponse);
+  
+  // Ensure single bootable partition
+  rpc EnsureSingleBootablePartition(EnsureSingleBootablePartitionRequest) returns (EnsureSingleBootablePartitionResponse);
 }
 
-// Initialize PhotoRec context
+// Initialize TestDisk context
 message InitializeRequest {
   repeated string args = 1;       // Command line arguments (equivalent to argc/argv)
   int32 log_mode = 2;            // Log mode: 0=no log, 1=info, 2=debug
@@ -383,4 +434,167 @@ message ShutdownResponse {
   bool success = 1;
   string error_message = 2;
   string message = 3;          // Status message about shutdown
+}
+
+// ============================================================================
+// PARTITION RECOVERY OPERATIONS - Search and Recovery
+// ============================================================================
+
+// Search for partitions on disk
+message SearchPartitionsRequest {
+  string context_id = 1;
+  int32 fast_mode = 2;        // Fast mode level (0=comprehensive, 1=fast, 2=very fast)
+  int32 dump_ind = 3;         // Dump index for detailed output
+}
+
+message SearchPartitionsResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// Validate disk geometry settings
+message ValidateDiskGeometryRequest {
+  string context_id = 1;
+}
+
+message ValidateDiskGeometryResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 if geometry is valid, non-zero if issues detected
+}
+
+// Write partition table to disk
+message WritePartitionTableRequest {
+  string context_id = 1;
+  bool simulate = 2;          // If true, only simulate the write operation
+  bool no_confirm = 3;        // If true, skip confirmation prompts
+}
+
+message WritePartitionTableResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// ============================================================================
+// PARTITION STRUCTURE OPERATIONS - Navigation and Management
+// ============================================================================
+
+// Test partition structure validity
+message TestPartitionStructureRequest {
+  string context_id = 1;
+}
+
+message TestPartitionStructureResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 if structure is valid, non-zero if invalid
+}
+
+// Change partition status to next state
+message ChangePartitionStatusNextRequest {
+  string context_id = 1;
+  int32 order = 2;            // Partition order number
+}
+
+message ChangePartitionStatusNextResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// Change partition status to previous state
+message ChangePartitionStatusPrevRequest {
+  string context_id = 1;
+  int32 order = 2;            // Partition order number
+}
+
+message ChangePartitionStatusPrevResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// Change partition type
+message ChangePartitionTypeRequest {
+  string context_id = 1;
+  int32 order = 2;            // Partition order number
+  uint32 part_type = 3;       // New partition type value
+}
+
+message ChangePartitionTypeResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// List files in partition
+message ListPartitionFilesRequest {
+  string context_id = 1;
+  int32 order = 2;            // Partition order number
+}
+
+message ListPartitionFilesResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// Save partition table backup
+message SavePartitionBackupRequest {
+  string context_id = 1;
+}
+
+message SavePartitionBackupResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// Load partition table from backup
+message LoadPartitionBackupRequest {
+  string context_id = 1;
+}
+
+message LoadPartitionBackupResponse {
+  bool success = 1;
+  string error_message = 2;
+  int32 result = 3;           // 0 on success, -1 on error
+}
+
+// ============================================================================
+// CONFIGURATION FUNCTIONS - Recovery Partition Operations
+// ============================================================================
+
+// Delete partition table
+message DeletePartitionTableRequest {
+  string context_id = 1;
+  string device = 2;          // Device path
+}
+
+message DeletePartitionTableResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Write MBR code
+message WriteMbrCodeRequest {
+  string context_id = 1;
+  string device = 2;          // Device path
+}
+
+message WriteMbrCodeResponse {
+  bool success = 1;
+  string error_message = 2;
+}
+
+// Ensure single bootable partition
+message EnsureSingleBootablePartitionRequest {
+  string context_id = 1;
+}
+
+message EnsureSingleBootablePartitionResponse {
+  bool success = 1;
+  string error_message = 2;
 } 

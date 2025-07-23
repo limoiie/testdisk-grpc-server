@@ -2,19 +2,19 @@
 #include <memory>
 #include <string>
 #include <grpcpp/grpcpp.h>
-#include "photorec.grpc.pb.h"
+#include "testdisk.grpc.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
-using photorec::PhotoRecService;
-using photorec::ShutdownRequest;
-using photorec::ShutdownResponse;
+using testdisk::TestDiskService;
+using testdisk::ShutdownRequest;
+using testdisk::ShutdownResponse;
 
 class ShutdownClient {
 public:
     explicit ShutdownClient(std::shared_ptr<Channel> channel)
-        : stub_(PhotoRecService::NewStub(channel)) {}
+        : stub_(TestDiskService::NewStub(channel)) {}
 
     bool ShutdownServer(bool force = false, const std::string& reason = "") {
         ShutdownRequest request;
@@ -52,7 +52,7 @@ public:
     }
 
 private:
-    std::unique_ptr<PhotoRecService::Stub> stub_;
+    std::unique_ptr<TestDiskService::Stub> stub_;
 };
 
 void PrintUsage(const char* program_name) {
@@ -120,7 +120,7 @@ int main(int argc, char* argv[]) {
         // Create client
         ShutdownClient client(channel);
 
-        std::cout << "Connecting to PhotoRec gRPC server at " << server_address << std::endl;
+        std::cout << "Connecting to TestDisk gRPC server at " << server_address << std::endl;
 
         // Send shutdown request
         bool success = client.ShutdownServer(force, reason);

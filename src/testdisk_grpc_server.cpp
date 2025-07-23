@@ -1,12 +1,12 @@
-#include "photorec_grpc_server.h"
+#include "testdisk_grpc_server.h"
 #include "logger.h"
 #include <random>
 
-namespace photorec
+namespace testdisk
 {
-    PhotoRecGrpcServer::~PhotoRecGrpcServer()
+    TestDiskGrpcServer::~TestDiskGrpcServer()
     {
-        LOG_INFO("PhotoRec gRPC Server destructor called");
+        LOG_INFO("TestDisk gRPC Server destructor called");
         Stop();
 
         // Clean up all contexts
@@ -17,15 +17,15 @@ namespace photorec
         {
             if (pair.second)
             {
-                LOG_DEBUG("Finishing PhotoRec context: " + pair.first);
-                finish_photorec(pair.second);
+                LOG_DEBUG("Finishing TestDisk context: " + pair.first);
+                finish_testdisk(pair.second);
             }
         }
         contexts_.clear();
-        LOG_INFO("PhotoRec gRPC Server cleanup completed");
+        LOG_INFO("TestDisk gRPC Server cleanup completed");
     }
 
-    std::string PhotoRecGrpcServer::GenerateContextId()
+    std::string TestDiskGrpcServer::GenerateContextId()
     {
         static std::random_device rd;
         static std::mt19937 gen(rd());
@@ -41,7 +41,7 @@ namespace photorec
         return id;
     }
 
-    std::string PhotoRecGrpcServer::GenerateRecoveryId()
+    std::string TestDiskGrpcServer::GenerateRecoveryId()
     {
         static std::random_device rd;
         static std::mt19937 gen(rd());
@@ -57,7 +57,7 @@ namespace photorec
         return id;
     }
 
-    ph_cli_context_t* PhotoRecGrpcServer::GetContext(const std::string& context_id)
+    testdisk_cli_context_t* TestDiskGrpcServer::GetContext(const std::string& context_id)
     {
         std::lock_guard<std::mutex> lock(contexts_mutex_);
         auto it = contexts_.find(context_id);
@@ -73,7 +73,7 @@ namespace photorec
         }
     }
 
-    RecoverySession* PhotoRecGrpcServer::GetRecoverySession(
+    RecoverySession* TestDiskGrpcServer::GetRecoverySession(
         const std::string& recovery_id)
     {
         std::lock_guard<std::mutex> lock(sessions_mutex_);
@@ -90,7 +90,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::Initialize(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::Initialize(grpc::ServerContext* context,
                                                 const InitializeRequest* request,
                                                 InitializeResponse* response)
     {
@@ -106,7 +106,7 @@ namespace photorec
             if (request->args_size() == 0)
             {
                 // Default argument if none provided
-                arg_strings.emplace_back("photorec");
+                arg_strings.emplace_back("testdisk");
             }
             else
             {
@@ -124,10 +124,10 @@ namespace photorec
             }
             argv_vector.push_back(nullptr); // Null terminate
 
-            LOG_DEBUG("Initializing PhotoRec context with log mode: " +
+            LOG_DEBUG("Initializing TestDisk context with log mode: " +
                 std::to_string(request->log_mode()) + ", argc: " + std::to_string(arg_strings.size()));
 
-            ph_cli_context_t* ctx = init_photorec(static_cast<int>(arg_strings.size()),
+            testdisk_cli_context_t* ctx = init_testdisk(static_cast<int>(arg_strings.size()),
                                                   argv_vector.data(),
                                                   request->log_mode(),
                                                   request->log_file().empty()
@@ -136,9 +136,9 @@ namespace photorec
 
             if (!ctx)
             {
-                LOG_ERROR("Failed to initialize PhotoRec context");
+                LOG_ERROR("Failed to initialize TestDisk context");
                 response->set_success(false);
-                response->set_error_message("Failed to initialize PhotoRec context");
+                response->set_error_message("Failed to initialize TestDisk context");
                 return grpc::Status::OK;
             }
 
@@ -149,7 +149,7 @@ namespace photorec
             {
                 std::lock_guard<std::mutex> lock(contexts_mutex_);
                 contexts_[context_id] = ctx;
-                LOG_INFO("PhotoRec context initialized successfully: " + context_id);
+                LOG_INFO("TestDisk context initialized successfully: " + context_id);
             }
 
             response->set_success(true);
@@ -166,7 +166,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::AddImage(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::AddImage(grpc::ServerContext* context,
                                               const AddImageRequest* request,
                                               AddImageResponse* response)
     {
@@ -176,7 +176,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -215,7 +215,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::GetDisks(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::GetDisks(grpc::ServerContext* context,
                                               const GetDisksRequest* request,
                                               GetDisksResponse* response)
     {
@@ -224,7 +224,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -263,7 +263,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::GetPartitions(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::GetPartitions(grpc::ServerContext* context,
                                                    const GetPartitionsRequest* request,
                                                    GetPartitionsResponse* response)
     {
@@ -273,7 +273,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -322,7 +322,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::GetArchs(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::GetArchs(grpc::ServerContext* context,
                                               const GetArchsRequest* request,
                                               GetArchsResponse* response)
     {
@@ -331,7 +331,7 @@ namespace photorec
 
         try
         {
-            const ph_cli_context_t* ctx = GetContext(request->context_id());
+            const testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -370,7 +370,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::SetArchForCurrentDisk(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::SetArchForCurrentDisk(grpc::ServerContext* context,
                                                            const SetArchForCurrentDiskRequest* request,
                                                            SetArchForCurrentDiskResponse* response)
     {
@@ -380,7 +380,7 @@ namespace photorec
 
         try
         {
-            const ph_cli_context_t* ctx = GetContext(request->context_id());
+            const testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -415,7 +415,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::GetFileOptions(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::GetFileOptions(grpc::ServerContext* context,
                                                     const GetFileOptionsRequest* request,
                                                     GetFileOptionsResponse* response)
     {
@@ -424,7 +424,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -465,7 +465,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::StartRecovery(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::StartRecovery(grpc::ServerContext* context,
                                                    const StartRecoveryRequest* request,
                                                    StartRecoveryResponse* response)
     {
@@ -475,7 +475,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -532,7 +532,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::GetRecoveryStatus(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::GetRecoveryStatus(grpc::ServerContext* context,
                                                        const GetRecoveryStatusRequest*
                                                        request,
                                                        GetRecoveryStatusResponse*
@@ -580,7 +580,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::StopRecovery(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::StopRecovery(grpc::ServerContext* context,
                                                   const StopRecoveryRequest* request,
                                                   StopRecoveryResponse* response)
     {
@@ -601,7 +601,7 @@ namespace photorec
             // Stop the recovery
             LOG_DEBUG("Stopping recovery session: " + request->recovery_id());
             session->running = false;
-            abort_photorec(session->context);
+            abort_testdisk(session->context);
 
             // Wait for thread to finish
             if (session->recovery_thread.joinable())
@@ -623,7 +623,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::ConfigureOptions(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::ConfigureOptions(grpc::ServerContext* context,
                                                       const ConfigureOptionsRequest*
                                                       request,
                                                       ConfigureOptionsResponse* response)
@@ -634,7 +634,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -660,7 +660,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::GetStatistics(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::GetStatistics(grpc::ServerContext* context,
                                                    const GetStatisticsRequest* request,
                                                    GetStatisticsResponse* response)
     {
@@ -669,7 +669,7 @@ namespace photorec
 
         try
         {
-            const ph_cli_context_t* ctx = GetContext(request->context_id());
+            const testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -727,7 +727,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::Cleanup(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::Cleanup(grpc::ServerContext* context,
                                              const CleanupRequest* request,
                                              CleanupResponse* response)
     {
@@ -736,7 +736,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = GetContext(request->context_id());
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
             if (!ctx)
             {
                 LOG_ERROR("Invalid context ID: " + request->context_id());
@@ -746,8 +746,8 @@ namespace photorec
             }
 
             // Clean up context
-            LOG_DEBUG("Finishing PhotoRec context: " + request->context_id());
-            finish_photorec(ctx);
+            LOG_DEBUG("Finishing TestDisk context: " + request->context_id());
+            finish_testdisk(ctx);
 
             // Remove from contexts map
             {
@@ -768,7 +768,7 @@ namespace photorec
         }
     }
 
-    grpc::Status PhotoRecGrpcServer::Shutdown(grpc::ServerContext* context,
+    grpc::Status TestDiskGrpcServer::Shutdown(grpc::ServerContext* context,
                                               const ShutdownRequest* request,
                                               ShutdownResponse* response)
     {
@@ -819,7 +819,7 @@ namespace photorec
                         RecoverySession* session = session_pair.second.get();
                         LOG_INFO("Stopping recovery session: " + session->id);
                         session->running = false;
-                        abort_photorec(session->context);
+                        abort_testdisk(session->context);
                         
                         // Wait for thread to finish
                         if (session->recovery_thread.joinable())
@@ -873,7 +873,7 @@ namespace photorec
         }
     }
 
-    void PhotoRecGrpcServer::RecoveryWorker(RecoverySession* session,
+    void TestDiskGrpcServer::RecoveryWorker(RecoverySession* session,
                                             const std::string& device,
                                             const int partition_order,
                                             const std::string& recup_dir,
@@ -883,7 +883,7 @@ namespace photorec
 
         try
         {
-            ph_cli_context_t* ctx = session->context;
+            testdisk_cli_context_t* ctx = session->context;
 
             // Apply recovery options
             LOG_DEBUG("Applying recovery options");
@@ -934,11 +934,11 @@ namespace photorec
             change_recup_dir(ctx, recup_dir.c_str());
 
             // Start recovery
-            LOG_INFO("Starting PhotoRec recovery process");
+            LOG_INFO("Starting TestDisk recovery process");
             UpdateRecoveryStatus(session, STATUS_FIND_OFFSET, 0);
 
-            LOG_INFO("Running PhotoRec recovery in directory: " + std::string(ctx->params.recup_dir));
-            const int result = run_photorec(ctx);
+            LOG_INFO("Running TestDisk recovery in directory: " + std::string(ctx->params.recup_dir));
+            const int result = run_testdisk(ctx);
 
             // Update final status
             {
@@ -973,8 +973,8 @@ namespace photorec
         }
     }
 
-    void PhotoRecGrpcServer::UpdateRecoveryStatus(RecoverySession* session,
-                                                  photorec_status_t status,
+    void TestDiskGrpcServer::UpdateRecoveryStatus(RecoverySession* session,
+                                                  testdisk_status_t status,
                                                   uint64_t offset)
     {
         std::lock_guard<std::mutex> lock(session->status_mutex);
@@ -987,7 +987,7 @@ namespace photorec
             " (" + std::to_string(session->files_recovered) + " files recovered)");
     }
 
-    std::string PhotoRecGrpcServer::StatusToString(photorec_status_t status)
+    std::string TestDiskGrpcServer::StatusToString(testdisk_status_t status)
     {
         switch (status)
         {
@@ -1004,7 +1004,7 @@ namespace photorec
         }
     }
 
-    void PhotoRecGrpcServer::ConvertDiskInfo(const disk_t* disk, DiskInfo* proto_disk)
+    void TestDiskGrpcServer::ConvertDiskInfo(const disk_t* disk, DiskInfo* proto_disk)
     {
         proto_disk->set_device(disk->device ? disk->device : "");
         proto_disk->set_description(disk->description_txt);
@@ -1024,7 +1024,7 @@ namespace photorec
         }
     }
 
-    void PhotoRecGrpcServer::ConvertPartitionInfo(const partition_t* partition,
+    void TestDiskGrpcServer::ConvertPartitionInfo(const partition_t* partition,
                                                   PartitionInfo* proto_partition)
     {
         proto_partition->set_name(partition->partname);
@@ -1168,7 +1168,7 @@ namespace photorec
         }
     }
 
-    void PhotoRecGrpcServer::ApplyRecoveryOptions(ph_cli_context_t* ctx,
+    void TestDiskGrpcServer::ApplyRecoveryOptions(testdisk_cli_context_t* ctx,
                                                   const RecoveryOptions& options)
     {
         LOG_DEBUG("Applying recovery options - Paranoid: " +
@@ -1215,7 +1215,7 @@ namespace photorec
         }
     }
 
-    bool PhotoRecGrpcServer::Start(const std::string& address)
+    bool TestDiskGrpcServer::Start(const std::string& address)
     {
         if (running_)
         {
@@ -1224,7 +1224,7 @@ namespace photorec
         }
 
         server_address_ = address;
-        LOG_INFO("Starting PhotoRec gRPC Server on " + address);
+        LOG_INFO("Starting TestDisk gRPC Server on " + address);
 
         grpc::ServerBuilder builder;
         builder.AddListeningPort(address, grpc::InsecureServerCredentials());
@@ -1238,22 +1238,22 @@ namespace photorec
         }
 
         running_ = true;
-        LOG_INFO("PhotoRec gRPC Server started successfully on " + address);
+        LOG_INFO("TestDisk gRPC Server started successfully on " + address);
         return true;
     }
 
-    void PhotoRecGrpcServer::Stop()
+    void TestDiskGrpcServer::Stop()
     {
         if (running_ && server_)
         {
-            LOG_INFO("Stopping PhotoRec gRPC Server");
+            LOG_INFO("Stopping TestDisk gRPC Server");
             server_->Shutdown();
             running_ = false;
-            LOG_INFO("PhotoRec gRPC Server stopped");
+            LOG_INFO("TestDisk gRPC Server stopped");
         }
     }
 
-    void PhotoRecGrpcServer::Wait() const
+    void TestDiskGrpcServer::Wait() const
     {
         if (server_)
         {
@@ -1262,4 +1262,524 @@ namespace photorec
             LOG_INFO("Server finished");
         }
     }
-} // namespace photorec
+
+    // ============================================================================
+    // PARTITION RECOVERY OPERATIONS - Search and Recovery
+    // ============================================================================
+
+    grpc::Status TestDiskGrpcServer::SearchPartitions(grpc::ServerContext* context,
+                                                      const SearchPartitionsRequest* request,
+                                                      SearchPartitionsResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("SearchPartitions request received for context: " + request->context_id() +
+            ", Fast mode: " + std::to_string(request->fast_mode()) +
+            ", Dump index: " + std::to_string(request->dump_ind()));
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = search_partitions(ctx, request->fast_mode(), request->dump_ind());
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to search partitions");
+            }
+
+            LOG_INFO("SearchPartitions completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SearchPartitions error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("SearchPartitions error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::ValidateDiskGeometry(grpc::ServerContext* context,
+                                                          const ValidateDiskGeometryRequest* request,
+                                                          ValidateDiskGeometryResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("ValidateDiskGeometry request received for context: " + request->context_id());
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = validate_disk_geometry(ctx);
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Disk geometry validation failed");
+            }
+
+            LOG_INFO("ValidateDiskGeometry completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("ValidateDiskGeometry error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("ValidateDiskGeometry error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::WritePartitionTable(grpc::ServerContext* context,
+                                                         const WritePartitionTableRequest* request,
+                                                         WritePartitionTableResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("WritePartitionTable request received for context: " + request->context_id() +
+            ", Simulate: " + std::to_string(request->simulate()) +
+            ", No confirm: " + std::to_string(request->no_confirm()));
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = write_partition_table(ctx, request->simulate() ? 1 : 0, request->no_confirm() ? 1 : 0);
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to write partition table");
+            }
+
+            LOG_INFO("WritePartitionTable completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("WritePartitionTable error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("WritePartitionTable error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::DeletePartitionTable(grpc::ServerContext* context,
+                                                          const DeletePartitionTableRequest* request,
+                                                          DeletePartitionTableResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("DeletePartitionTable request received for context: " + request->context_id() +
+            ", Device: " + request->device());
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            // This is a destructive operation
+            LOG_WARNING("Deleting partition table for device: " + request->device());
+            delete_partition_table(ctx);
+            
+            response->set_success(true);
+            LOG_INFO("DeletePartitionTable completed successfully");
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("DeletePartitionTable error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("DeletePartitionTable error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
+    // ============================================================================
+    // PARTITION STRUCTURE OPERATIONS - Navigation and Management
+    // ============================================================================
+
+    grpc::Status TestDiskGrpcServer::TestPartitionStructure(grpc::ServerContext* context,
+                                                            const TestPartitionStructureRequest* request,
+                                                            TestPartitionStructureResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("TestPartitionStructure request received for context: " + request->context_id());
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = test_partition_structure(ctx);
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Partition structure test failed");
+            }
+
+            LOG_INFO("TestPartitionStructure completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("TestPartitionStructure error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("TestPartitionStructure error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::ChangePartitionStatusNext(grpc::ServerContext* context,
+                                                               const ChangePartitionStatusNextRequest* request,
+                                                               ChangePartitionStatusNextResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("ChangePartitionStatusNext request received for context: " + request->context_id() +
+            ", Order: " + std::to_string(request->order()));
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = change_partition_status_next(ctx, request->order());
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to change partition status to next");
+            }
+
+            LOG_INFO("ChangePartitionStatusNext completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("ChangePartitionStatusNext error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("ChangePartitionStatusNext error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::ChangePartitionStatusPrev(grpc::ServerContext* context,
+                                                               const ChangePartitionStatusPrevRequest* request,
+                                                               ChangePartitionStatusPrevResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("ChangePartitionStatusPrev request received for context: " + request->context_id() +
+            ", Order: " + std::to_string(request->order()));
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = change_partition_status_prev(ctx, request->order());
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to change partition status to previous");
+            }
+
+            LOG_INFO("ChangePartitionStatusPrev completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("ChangePartitionStatusPrev error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("ChangePartitionStatusPrev error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::ChangePartitionType(grpc::ServerContext* context,
+                                                         const ChangePartitionTypeRequest* request,
+                                                         ChangePartitionTypeResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("ChangePartitionType request received for context: " + request->context_id() +
+            ", Order: " + std::to_string(request->order()) +
+            ", Part type: " + std::to_string(request->part_type()));
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = change_partition_type(ctx, request->order(), request->part_type());
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to change partition type");
+            }
+
+            LOG_INFO("ChangePartitionType completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("ChangePartitionType error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("ChangePartitionType error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::ListPartitionFiles(grpc::ServerContext* context,
+                                                        const ListPartitionFilesRequest* request,
+                                                        ListPartitionFilesResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("ListPartitionFiles request received for context: " + request->context_id() +
+            ", Order: " + std::to_string(request->order()));
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = list_partition_files(ctx, request->order());
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to list partition files");
+            }
+
+            LOG_INFO("ListPartitionFiles completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("ListPartitionFiles error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("ListPartitionFiles error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::SavePartitionBackup(grpc::ServerContext* context,
+                                                         const SavePartitionBackupRequest* request,
+                                                         SavePartitionBackupResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("SavePartitionBackup request received for context: " + request->context_id());
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = save_partition_backup(ctx);
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to save partition backup");
+            }
+
+            LOG_INFO("SavePartitionBackup completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("SavePartitionBackup error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("SavePartitionBackup error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::LoadPartitionBackup(grpc::ServerContext* context,
+                                                         const LoadPartitionBackupRequest* request,
+                                                         LoadPartitionBackupResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("LoadPartitionBackup request received for context: " + request->context_id());
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            int result = load_partition_backup(ctx);
+            
+            response->set_success(result == 0);
+            response->set_result(result);
+            if (result != 0)
+            {
+                response->set_error_message("Failed to load partition backup");
+            }
+
+            LOG_INFO("LoadPartitionBackup completed with result: " + std::to_string(result));
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("LoadPartitionBackup error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("LoadPartitionBackup error: ") + e.what());
+            response->set_result(-1);
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::WriteMbrCode(grpc::ServerContext* context,
+                                                  const WriteMbrCodeRequest* request,
+                                                  WriteMbrCodeResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("WriteMbrCode request received for context: " + request->context_id() +
+            ", Device: " + request->device());
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            write_MBR_code(ctx);
+            
+            response->set_success(true);
+            LOG_INFO("WriteMbrCode completed successfully");
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("WriteMbrCode error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("WriteMbrCode error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
+    grpc::Status TestDiskGrpcServer::EnsureSingleBootablePartition(grpc::ServerContext* context,
+                                                                   const EnsureSingleBootablePartitionRequest* request,
+                                                                   EnsureSingleBootablePartitionResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_INFO("EnsureSingleBootablePartition request received for context: " + request->context_id());
+
+        try
+        {
+            testdisk_cli_context_t* ctx = GetContext(request->context_id());
+            if (!ctx)
+            {
+                LOG_ERROR("Invalid context ID: " + request->context_id());
+                response->set_success(false);
+                response->set_error_message("Invalid context ID");
+                return grpc::Status::OK;
+            }
+
+            ensure_single_bootable_partition(ctx);
+            
+            response->set_success(true);
+            LOG_INFO("EnsureSingleBootablePartition completed successfully");
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("EnsureSingleBootablePartition error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("EnsureSingleBootablePartition error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+} // namespace testdisk

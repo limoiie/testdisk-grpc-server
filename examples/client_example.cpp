@@ -2,35 +2,35 @@
 #include <memory>
 #include <string>
 #include <grpcpp/grpcpp.h>
-#include "photorec.grpc.pb.h"
+#include "testdisk.grpc.pb.h"
 #include <thread>
 
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
-using photorec::PhotoRecService;
+using testdisk::TestDiskService;
 
-class PhotoRecClient
+class TestDiskClient
 {
 public:
-    explicit PhotoRecClient(const std::shared_ptr<Channel>& channel)
-        : stub_(PhotoRecService::NewStub(channel))
+    explicit TestDiskClient(const std::shared_ptr<Channel>& channel)
+        : stub_(TestDiskService::NewStub(channel))
     {
     }
 
-    // Initialize PhotoRec context
+    // Initialize TestDisk context
     bool Initialize(std::string& context_id) const
     {
-        photorec::InitializeRequest request;
+        testdisk::InitializeRequest request;
         request.set_log_mode(1); // Info level logging
 
-        photorec::InitializeResponse response;
+        testdisk::InitializeResponse response;
         ClientContext context;
 
         if (const Status status = stub_->Initialize(&context, request, &response); status.ok() && response.success())
         {
             context_id = response.context_id();
-            std::cout << "Initialized PhotoRec context: " << context_id << std::endl;
+            std::cout << "Initialized TestDisk context: " << context_id << std::endl;
             return true;
         }
         else
@@ -44,11 +44,11 @@ public:
     // Add image
     [[nodiscard]] bool AddImage(const std::string& context_id, const std::string& image_file) const
     {
-        photorec::AddImageRequest request;
+        testdisk::AddImageRequest request;
         request.set_context_id(context_id);
         request.set_image_file(image_file);
 
-        photorec::AddImageResponse response;
+        testdisk::AddImageResponse response;
         ClientContext context;
 
         Status status = stub_->AddImage(&context, request, &response);
@@ -68,10 +68,10 @@ public:
     // Get available disks
     [[nodiscard]] bool GetDisks(const std::string& context_id) const
     {
-        photorec::GetDisksRequest request;
+        testdisk::GetDisksRequest request;
         request.set_context_id(context_id);
 
-        photorec::GetDisksResponse response;
+        testdisk::GetDisksResponse response;
         ClientContext context;
 
         Status status = stub_->GetDisks(&context, request, &response);
@@ -104,11 +104,11 @@ public:
     [[nodiscard]] bool GetPartitions(const std::string& context_id,
                                      const std::string& device) const
     {
-        photorec::GetPartitionsRequest request;
+        testdisk::GetPartitionsRequest request;
         request.set_context_id(context_id);
         request.set_device(device);
 
-        photorec::GetPartitionsResponse response;
+        testdisk::GetPartitionsResponse response;
         ClientContext context;
 
         Status status = stub_->GetPartitions(&context, request, &response);
@@ -139,10 +139,10 @@ public:
     // Get available architectures
     [[nodiscard]] bool GetArchs(const std::string& context_id) const
     {
-        photorec::GetArchsRequest request;
+        testdisk::GetArchsRequest request;
         request.set_context_id(context_id);
 
-        photorec::GetArchsResponse response;
+        testdisk::GetArchsResponse response;
         ClientContext context;
 
         Status status = stub_->GetArchs(&context, request, &response);
@@ -172,11 +172,11 @@ public:
     [[nodiscard]] bool SetArchForCurrentDisk(const std::string& context_id,
                                              const std::string& arch_name) const
     {
-        photorec::SetArchForCurrentDiskRequest request;
+        testdisk::SetArchForCurrentDiskRequest request;
         request.set_context_id(context_id);
         request.set_arch_name(arch_name);
 
-        photorec::SetArchForCurrentDiskResponse response;
+        testdisk::SetArchForCurrentDiskResponse response;
         ClientContext context;
 
         Status status = stub_->SetArchForCurrentDisk(&context, request, &response);
@@ -196,10 +196,10 @@ public:
     // Get file type options
     [[nodiscard]] bool GetFileOptions(const std::string& context_id) const
     {
-        photorec::GetFileOptionsRequest request;
+        testdisk::GetFileOptionsRequest request;
         request.set_context_id(context_id);
 
-        photorec::GetFileOptionsResponse response;
+        testdisk::GetFileOptionsResponse response;
         ClientContext context;
 
         Status status = stub_->GetFileOptions(&context, request, &response);
@@ -230,7 +230,7 @@ public:
                        const int partition_order, const std::string& recovery_dir,
                        std::string& recovery_id) const
     {
-        photorec::StartRecoveryRequest request;
+        testdisk::StartRecoveryRequest request;
         request.set_context_id(context_id);
         request.set_device(device);
         request.set_partition_order(partition_order);
@@ -246,7 +246,7 @@ public:
         options->set_carve_free_space_only(false);
         options->set_verbose_output(true);
 
-        photorec::StartRecoveryResponse response;
+        testdisk::StartRecoveryResponse response;
         ClientContext context;
 
         Status status = stub_->StartRecovery(&context, request, &response);
@@ -271,11 +271,11 @@ public:
     {
         while (true)
         {
-            photorec::GetRecoveryStatusRequest request;
+            testdisk::GetRecoveryStatusRequest request;
             request.set_context_id(context_id);
             request.set_recovery_id(recovery_id);
 
-            photorec::GetRecoveryStatusResponse response;
+            testdisk::GetRecoveryStatusResponse response;
             ClientContext context;
 
             Status status = stub_->GetRecoveryStatus(&context, request, &response);
@@ -318,10 +318,10 @@ public:
     // Clean up
     [[nodiscard]] bool Cleanup(const std::string& context_id) const
     {
-        photorec::CleanupRequest request;
+        testdisk::CleanupRequest request;
         request.set_context_id(context_id);
 
-        photorec::CleanupResponse response;
+        testdisk::CleanupResponse response;
         ClientContext context;
 
         Status status = stub_->Cleanup(&context, request, &response);
@@ -339,7 +339,7 @@ public:
     }
 
 private:
-    std::unique_ptr<PhotoRecService::Stub> stub_;
+    std::unique_ptr<TestDiskService::Stub> stub_;
 };
 
 int main(int argc, char* argv[])
@@ -355,14 +355,14 @@ int main(int argc, char* argv[])
     const std::string device_path = argv[2];
     const std::string recovery_dir = (argc > 3) ? argv[3] : "/tmp/recovery";
 
-    std::cout << "PhotoRec gRPC Client Example" << std::endl;
+    std::cout << "TestDisk gRPC Client Example" << std::endl;
     std::cout << "Server: " << server_address << std::endl;
     std::cout << "Device: " << device_path << std::endl;
     std::cout << "Recovery dir: " << recovery_dir << std::endl;
     std::cout << std::endl;
 
     // Create client
-    PhotoRecClient client(
+    TestDiskClient client(
         grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials())
     );
 
@@ -370,7 +370,7 @@ int main(int argc, char* argv[])
     {
         std::string recovery_id;
         std::string context_id;
-        // Initialize PhotoRec
+        // Initialize TestDisk
         if (!client.Initialize(context_id))
         {
             return 1;

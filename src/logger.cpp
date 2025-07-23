@@ -3,7 +3,7 @@
 #include <sstream>
 #include <iomanip>
 
-namespace photorec
+namespace testdisk
 {
     void Logger::Log(LogLevel level, const std::string& message,
                      const std::string& function,
@@ -93,4 +93,4 @@ namespace photorec
         }
         return ss.str();
     }
-} // namespace photorec
+} // namespace testdisk

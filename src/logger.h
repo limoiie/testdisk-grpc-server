@@ -3,10 +3,10 @@
 #include <string>
 #include <mutex>
 
-namespace photorec
+namespace testdisk
 {
     /**
-     * @brief Log levels for the PhotoRec gRPC server
+     * @brief Log levels for the TestDisk gRPC server
      */
     enum class LogLevel
     {
@@ -17,7 +17,7 @@ namespace photorec
     };
 
     /**
-     * @brief Simple logger class for PhotoRec gRPC server
+     * @brief Simple logger class for TestDisk gRPC server
      */
     class Logger
     {
@@ -66,4 +66,4 @@ namespace photorec
 #define LOG_INFO(msg) Logger::Instance().Info(msg, __FUNCTION__, __FILE__, __LINE__)
 #define LOG_WARNING(msg) Logger::Instance().Warning(msg, __FUNCTION__, __FILE__, __LINE__)
 #define LOG_ERROR(msg) Logger::Instance().Error(msg, __FUNCTION__, __FILE__, __LINE__)
-} // namespace photorec
+} // namespace testdisk
