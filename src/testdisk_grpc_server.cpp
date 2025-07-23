@@ -563,6 +563,7 @@ namespace testdisk
             status->set_directories_created(session->directories_created);
             status->set_is_complete(session->completed);
             status->set_error_message(session->error_message);
+            status->set_dir_num(session->context->params.dir_num);
 
             LOG_DEBUG("Recovery status for " + request->recovery_id() +
                 ": " + session->status + " (" +
