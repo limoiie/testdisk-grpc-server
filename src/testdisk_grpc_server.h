@@ -7,6 +7,7 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <chrono>
 
 // gRPC includes
 #include <grpcpp/server.h>
@@ -111,6 +112,10 @@ namespace testdisk
                               const ShutdownRequest* request,
                               ShutdownResponse* response) override;
 
+        grpc::Status Heartbeat(grpc::ServerContext* context,
+                              const HeartbeatRequest* request,
+                              HeartbeatResponse* response) override;
+
         // ============================================================================
         // PARTITION RECOVERY OPERATIONS - Search and Recovery
         // ============================================================================
@@ -212,6 +217,7 @@ namespace testdisk
         std::string server_address_;
         std::atomic<bool> running_{false};
         std::function<void()> shutdown_callback_;
+        std::chrono::steady_clock::time_point server_start_time_;
 
         // Context and session management
         std::unordered_map<std::string, testdisk_cli_context_t*> contexts_;

@@ -874,6 +874,76 @@ namespace testdisk
         }
     }
 
+    grpc::Status TestDiskGrpcServer::Heartbeat(grpc::ServerContext* context,
+                                              const HeartbeatRequest* request,
+                                              HeartbeatResponse* response)
+    {
+        (void)context; // Suppress unused parameter warning
+        LOG_DEBUG("Heartbeat request received");
+
+        try
+        {
+            // Basic liveness check
+            response->set_success(true);
+            response->set_server_version("TestDisk gRPC Wrapper v1.0.0");
+            
+            // Calculate uptime
+            auto current_time = std::chrono::steady_clock::now();
+            auto uptime = std::chrono::duration_cast<std::chrono::seconds>(
+                current_time - server_start_time_);
+            response->set_uptime_seconds(uptime.count());
+            
+            // Count active contexts
+            int active_contexts = 0;
+            {
+                std::lock_guard<std::mutex> lock(contexts_mutex_);
+                active_contexts = static_cast<int>(contexts_.size());
+            }
+            response->set_active_contexts(active_contexts);
+            
+            // Count active recovery sessions
+            int active_recoveries = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessions_mutex_);
+                for (const auto& session_pair : recovery_sessions_)
+                {
+                    if (session_pair.second && session_pair.second->running)
+                    {
+                        active_recoveries++;
+                    }
+                }
+            }
+            response->set_active_recoveries(active_recoveries);
+            
+            // Optional context validation if context_id is provided
+            if (!request->context_id().empty())
+            {
+                testdisk_cli_context_t* ctx = GetContext(request->context_id());
+                if (!ctx)
+                {
+                    LOG_WARNING("Heartbeat: Invalid context_id provided: " + request->context_id());
+                    response->set_success(false);
+                    response->set_error_message("Invalid context_id provided");
+                    return grpc::Status::OK;
+                }
+                LOG_DEBUG("Heartbeat: Validated context_id: " + request->context_id());
+            }
+            
+            LOG_DEBUG("Heartbeat response: uptime=" + std::to_string(uptime.count()) + 
+                     "s, contexts=" + std::to_string(active_contexts) + 
+                     ", recoveries=" + std::to_string(active_recoveries));
+            
+            return grpc::Status::OK;
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("Heartbeat error: " + std::string(e.what()));
+            response->set_success(false);
+            response->set_error_message(std::string("Heartbeat error: ") + e.what());
+            return grpc::Status::OK;
+        }
+    }
+
     void TestDiskGrpcServer::RecoveryWorker(RecoverySession* session,
                                             const std::string& device,
                                             const int partition_order,
@@ -1239,6 +1309,7 @@ namespace testdisk
         }
 
         running_ = true;
+        server_start_time_ = std::chrono::steady_clock::now();
         LOG_INFO("TestDisk gRPC Server started successfully on " + address);
         return true;
     }

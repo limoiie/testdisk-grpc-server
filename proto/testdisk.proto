@@ -46,6 +46,9 @@ service TestDiskService {
   // Shutdown the server
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
   
+  // Check server liveness
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+
   // ============================================================================
   // PARTITION RECOVERY OPERATIONS - Search and Recovery
   // ============================================================================
@@ -435,6 +438,21 @@ message ShutdownResponse {
   bool success = 1;
   string error_message = 2;
   string message = 3;          // Status message about shutdown
+}
+
+// Check server liveness
+message HeartbeatRequest {
+  // Optional: can be empty for simple liveness check
+  string context_id = 1;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  string error_message = 2;
+  string server_version = 3;    // Server version information
+  int64 uptime_seconds = 4;     // Server uptime in seconds
+  int32 active_contexts = 5;    // Number of active contexts
+  int32 active_recoveries = 6;  // Number of active recovery sessions
 }
 
 // ============================================================================
