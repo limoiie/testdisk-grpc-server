@@ -4,6 +4,8 @@
 
 namespace testdisk
 {
+    std::string find_start_recovery_dir(const std::string& recup_dir);
+
     TestDiskGrpcServer::~TestDiskGrpcServer()
     {
         LOG_INFO("TestDisk gRPC Server destructor called");
@@ -557,7 +559,7 @@ namespace testdisk
 
             std::lock_guard<std::mutex> lock(session->status_mutex);
             status->set_status(session->status);
-            status->set_current_offset(session->current_offset);
+            status->set_current_offset(session->context->params.offset);
             status->set_total_size(session->total_size);
             status->set_files_recovered(session->files_recovered);
             status->set_directories_created(session->directories_created);
@@ -1007,16 +1009,16 @@ namespace testdisk
 
             // Start recovery
             LOG_INFO("Starting TestDisk recovery process");
-            UpdateRecoveryStatus(session, STATUS_FIND_OFFSET, 0);
+            UpdateRecoveryStatus(session, STATUS_FIND_OFFSET);
+
+            // Get the start recovery dir where will store the report.xml
+            std::string start_recovery_dir = find_start_recovery_dir(ctx->params.recup_dir);
 
             LOG_INFO("Running TestDisk recovery in directory: " + std::string(ctx->params.recup_dir));
             const int result = run_testdisk(ctx);
 
-            // Get real recovery dir by adding the dir_num to the recup_dir
-            std::string real_recovery_dir = std::string(ctx->params.recup_dir) + "." + std::to_string(ctx->params.dir_num);
-
             // Move report.xml to tmp directory
-            std::string report_xml = std::string(real_recovery_dir) + "/report.xml";
+            std::string report_xml = std::string(start_recovery_dir) + "/report.xml";
             std::string tmp_dir = "/tmp";
             std::string tmp_report_xml = tmp_dir + "/recui-report-" + std::to_string((long) (void *) ctx) + ".xml";
             if (std::rename(report_xml.c_str(), tmp_report_xml.c_str()) != 0)
@@ -1029,6 +1031,7 @@ namespace testdisk
             }
 
             // Remove recovered thunmbnail pictures which starts with "t"
+            std::string real_recovery_dir = std::string(ctx->params.recup_dir) + "." + std::to_string(ctx->params.dir_num);
             std::vector<std::string> recovered_thumbnail_files;
             for (const auto& entry : std::filesystem::directory_iterator(real_recovery_dir))
             {
@@ -1078,16 +1081,15 @@ namespace testdisk
     }
 
     void TestDiskGrpcServer::UpdateRecoveryStatus(RecoverySession* session,
-                                                  testdisk_status_t status,
-                                                  uint64_t offset)
+                                                  testdisk_status_t status)
     {
         std::lock_guard<std::mutex> lock(session->status_mutex);
         session->status = StatusToString(status);
-        session->current_offset = offset;
         session->files_recovered = session->context->params.file_nbr;
+        session->directories_created = session->context->params.dir_num;
 
         LOG_DEBUG("Recovery status update for session " + session->id +
-            ": " + session->status + " at offset " + std::to_string(offset) +
+            ": " + session->status + " at offset " + std::to_string(session->context->params.offset) +
             " (" + std::to_string(session->files_recovered) + " files recovered)");
     }
 
@@ -1887,4 +1889,19 @@ namespace testdisk
             return grpc::Status::OK;
         }
     }
+
+    std::string find_start_recovery_dir(const std::string& recup_dir)
+    {
+        int i = 1;
+        while (true)
+        {
+            std::string start_recovery_dir = recup_dir + "." + std::to_string(i);
+            if (!std::filesystem::exists(start_recovery_dir))
+            {
+                return start_recovery_dir;
+            }
+            i++;
+        }
+    }
+
 } // namespace testdisk

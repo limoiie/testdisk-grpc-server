@@ -36,7 +36,6 @@ namespace testdisk
         std::atomic<bool> completed{false};
         std::atomic<uint32_t> files_recovered{0};
         std::atomic<uint32_t> directories_created{0};
-        std::atomic<uint64_t> current_offset{0};
         std::atomic<uint64_t> total_size{0};
         std::string status;
         std::string error_message;
@@ -241,8 +240,7 @@ namespace testdisk
 
         // Helper methods
         static void UpdateRecoveryStatus(RecoverySession* session,
-                                         testdisk_status_t status,
-                                         uint64_t offset);
+                                         testdisk_status_t status);
         static std::string StatusToString(testdisk_status_t status);
         static void ConvertDiskInfo(const disk_t* disk, DiskInfo* proto_disk);
         static void ConvertPartitionInfo(const partition_t* partition,
