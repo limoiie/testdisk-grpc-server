@@ -40,6 +40,7 @@ namespace testdisk
         std::atomic<uint64_t> total_size{0};
         std::string status;
         std::string error_message;
+        std::string report_path;
         std::mutex status_mutex;
     };
 

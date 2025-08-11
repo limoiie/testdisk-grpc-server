@@ -368,6 +368,7 @@ message RecoveryStatus {
   bool is_complete = 6;
   string error_message = 7;
   uint32 dir_num = 8;
+  string report_path = 9;
 }
 
 message GetRecoveryStatusResponse {

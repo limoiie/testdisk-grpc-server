@@ -564,6 +564,7 @@ namespace testdisk
             status->set_is_complete(session->completed);
             status->set_error_message(session->error_message);
             status->set_dir_num(session->context->params.dir_num);
+            status->set_report_path(session->report_path);
 
             LOG_DEBUG("Recovery status for " + request->recovery_id() +
                 ": " + session->status + " (" +
@@ -1010,6 +1011,38 @@ namespace testdisk
 
             LOG_INFO("Running TestDisk recovery in directory: " + std::string(ctx->params.recup_dir));
             const int result = run_testdisk(ctx);
+
+            // Get real recovery dir by adding the dir_num to the recup_dir
+            std::string real_recovery_dir = std::string(ctx->params.recup_dir) + "." + std::to_string(ctx->params.dir_num);
+
+            // Move report.xml to tmp directory
+            std::string report_xml = std::string(real_recovery_dir) + "/report.xml";
+            std::string tmp_dir = "/tmp";
+            std::string tmp_report_xml = tmp_dir + "/recui-report-" + std::to_string((long) (void *) ctx) + ".xml";
+            if (std::rename(report_xml.c_str(), tmp_report_xml.c_str()) != 0)
+            {
+                LOG_ERROR("Failed to move report.xml to tmp directory");
+                session->report_path = report_xml;
+            } else {
+                LOG_INFO("Moved report.xml to tmp directory: " + tmp_report_xml);
+                session->report_path = tmp_report_xml;
+            }
+
+            // Remove recovered thunmbnail pictures which starts with "t"
+            std::vector<std::string> recovered_thumbnail_files;
+            for (const auto& entry : std::filesystem::directory_iterator(real_recovery_dir))
+            {
+                if (entry.path().filename().string().starts_with("t"))
+                {
+                    recovered_thumbnail_files.push_back(entry.path().filename().string());
+                }
+            }
+            for (const auto& file : recovered_thumbnail_files)
+            {
+                std::string file_path = std::string(real_recovery_dir) + "/" + file;
+                std::remove(file_path.c_str());
+                LOG_INFO("Removed recovered thumbnail picture: " + file);
+            }
 
             // Update final status
             {
