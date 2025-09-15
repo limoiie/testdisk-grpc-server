@@ -5,6 +5,8 @@ ARG GRPC_VERSION=1.73.1
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
+    autopoint \
+    gettext \
     libz-dev \
     liblzma-dev \
     libbz2-dev \
@@ -15,6 +17,7 @@ RUN apt-get update && apt-get install -y \
     libncursesw5-dev \
     libpthread-stubs0-dev \
     libre2-dev \
+    lld \
     zlib1g-dev && \
     apt-get remove -y cmake
 
@@ -47,8 +50,6 @@ RUN cd /build/grpc-${GRPC_VERSION} && \
 
 # Mount the source code to /build/testdisk_grpc_server
 COPY ./ /build/testdisk_grpc_server
-
-RUN apt-get install -y lld gettext autopoint
 
 # Build testdisk
 RUN cd /build/testdisk_grpc_server/thirdparty/testdisk && \
