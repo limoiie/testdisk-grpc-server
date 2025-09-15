@@ -1,4 +1,4 @@
-FROM ubuntu.build:20.04-latest
+FROM ubuntu/build:20.04-latest
 
 ARG CMAKE_VERSION=3.31.0
 ARG GRPC_VERSION=1.73.1
