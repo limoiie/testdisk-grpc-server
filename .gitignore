@@ -133,5 +133,3 @@ secrets.json
 # Test output
 test-results/
 *.test 
-
-thirdparty/
