@@ -7,6 +7,10 @@ set(CMAKE_EXE_LINKER_FLAGS "-fuse-ld=lld")
 # Find required packages
 find_package(PkgConfig REQUIRED)
 
+# Find threads
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 # Find protobuf first
 find_package(Protobuf 6.31.0 REQUIRED)
 
